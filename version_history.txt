@@ -1,0 +1,51 @@
+version history
+Revisions with (*) imply changes in the EEPROM memory map.
+
+
+V8 (12.06.18)
+-New commands S/QPowJack define whether HVPS is powered by power jack or not (then via the 5V pin on 10-pin header). If powered via Jack, there will be no output if Power Jack is not detected. The default configuration is powered with Jack. No need to do anything, as new Arduino has default value of 0xFF to unwritten EEPROM location. If using HVPS in multichannel configuration or in the Touchscreen + Battery configuration, issue a SPowJack 0 command to disable PowerJack check. 
+-PID values are now automatically saved into memory after each use of SKp, SKi, SKd commands (no need to issue a separate Save command)
+-New command Conf to do the initial configuration of the board. Conf 5000 for 5kV. Initialises C0,C1,C2, Kp, Ki, Kd, Name, etc.
+
+V7 (27.02.17)
+-code now GNU GPLv3
+-implemented control of the presence of power Jack (emco won't be powered up if USB only is connected)
+-Voltage calibration: added coefficient for degree 0 (i.e. offset)
+-Push button: implementation of a latching mode (command SLatchMode) to define if the button behaves like a push button or like a latching switch.
+-Query memory function also returns the state of the button latching mode.
+-implemented trigger/strobe pulse on pin T of the 10 pind header on the PCB
+-implemented hardware interrupt on pin D7 for external freq control. This is required in MHVPS configuration to switch at f>100Hz. The board v4b2 doesn't include the required connection which can be added manually if needed. Future versions of the board will include this modification.
+
+V6 (30.05.16)
+-Save command also saves the waveform in memory.
+-SP command can be used to transfer a series of 8-bits points (up to 255 points) to create an arbitrary waveform
+-QP command can be used to query the waveform setpoint
+-QR command can be used to query the waveform output as measured by HVPS
+-Switching Mode 3 has been added to generate a waveform defined by a series of point set by the SP function.
+
+V5 (02.01.16)
+-Implemented PID as regulator (D term is disabled when error<5% to decrease noise and I term is disabled when set point is 0V)
+-Possibility to set Frequency on I2C line (so that each channel can have a different F in MHVPS configuration)
+
+V4 (25.11.15)
+-In open loop mode, the voltage set point is now automatically decreased if the ADC is in saturation, to avoid producing over voltages.
+-Introduced new commands SPWM (set PWM) and QPWM (query PWM) which allows to set/query a set point in as a raw PWM set point between 0 and 1023. Especially useful in open-loop mode, where there is no direct relation with the output voltage and a set point given in volts
+-Better overall frequency resolution (automatic setting of clock prescaler + software prescaler)
+-Lower frequency is now 0.001Hz (was 0.24Hz before)
+-Corrected bug in switching mode that caused the first pulse to be too long
+-HVPS can transfer its name to master over I2C
+
+V3 (*) 30.10.15
+-Board name is now saved in EEPROM. About time a child learns to remember his name!
+-Calibration factor has been changed to a quadratic relation: C2*10E-6*V^2+C1*V. Values C1 and C2 are double. Command SCal, QCal has been replaced by SC1, QC1, SC2, QC2.
+-If user enters a frequency <0.24, frequency is set to 0.24Hz to avoid random values due to 16bit counter overflow.
+
+v2 (*) 2.10.15
+-Corrected bug in switching mode with finite number of cycles that was producing 1 pulse less than expected
+-Changed gain of regulator (Corr) to be between 0 and 0.1 (instead of 0 to 1), as optimal value is ~0.01
+-LED turns on when Vout>40V, and optocoupler on -> the LED indicates whether harmful voltage is present at the board output.
+-In limited number of cycles mode, the switching can now also be restarted by pressing the onboard button
+-Number of cycles also saved in EEPROM so switching for a limited number of cycles can also be performed without a computer attached.
+-Command QMem (query memory) now also returns the number of switching cycles.
+
+v1: initial release
