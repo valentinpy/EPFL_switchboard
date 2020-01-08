@@ -1,9 +1,18 @@
 version history
 Revisions with (*) imply changes in the EEPROM memory map.
 
+-------------------------------------------------------
+Switchboard
+-------------------------------------------------------
+V1 (17.12.19) #TODO Update date when released
+-Add support for 6 relays
 
+
+-------------------------------------------------------
+Original HVPS
+-------------------------------------------------------
 V8 (12.06.18)
--New commands S/QPowJack define whether HVPS is powered by power jack or not (then via the 5V pin on 10-pin header). If powered via Jack, there will be no output if Power Jack is not detected. The default configuration is powered with Jack. No need to do anything, as new Arduino has default value of 0xFF to unwritten EEPROM location. If using HVPS in multichannel configuration or in the Touchscreen + Battery configuration, issue a SPowJack 0 command to disable PowerJack check. 
+-New commands S/QPowJack define whether HVPS is powered by power jack or not (then via the 5V pin on 10-pin header). If powered via Jack, there will be no output if Power Jack is not detected. The default configuration is powered with Jack. No need to do anything, as new Arduino has default value of 0xFF to unwritten EEPROM location. If using HVPS in multichannel configuration or in the Touchscreen + Battery configuration, issue a SPowJack 0 command to disable PowerJack check.
 -PID values are now automatically saved into memory after each use of SKp, SKi, SKd commands (no need to issue a separate Save command)
 -New command Conf to do the initial configuration of the board. Conf 5000 for 5kV. Initialises C0,C1,C2, Kp, Ki, Kd, Name, etc.
 

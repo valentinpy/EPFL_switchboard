@@ -1,25 +1,32 @@
-/*Code for the slave boards (i.e. Single channel high voltage power supplies, SHVPS) of the Project Peta-pico-Voltron
-Target platform: Arduino micro
+/*Code for the switchboard boards of the Project derivated from Peta-pico-Voltron
+  Author: Valentin Py
+  E-mail: valentin.py@epfl.ch / valentin.py@gmail.com
+  Company: EPFL - LMTS
+  Date: 17.12.2019
 
-Copyright 2016-2017 Samuel Rosset
-Distributed under the terms of the GNU General Public License GNU GPLv3
+  source:petapicovoltron.com
+  Target platform: Arduino micro + switchboard v1.0
 
-This file is part of shvps.
+  Copyright 2016-2019 Samuel Rosset - Valentin Py
+  Distributed under the terms of the GNU General Public License GNU GPLv3
 
-    shvps is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+  This file is part of Switchboard.
 
-    shvps is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+  shvps is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with shvps.  If not, see  <http://www.gnu.org/licenses/>
+  shvps is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with shvps.  If not, see  <http://www.gnu.org/licenses/>
 
 */
+
 void receiveEvent(int nbBytes) //this is called when the master sends information on the bus. It decodes the command sent by the master
 {
   uint8_t paramL,paramH;
@@ -28,7 +35,7 @@ void receiveEvent(int nbBytes) //this is called when the master sends informatio
     byte b[4];
     double d;
   }data;
-  
+
   if (Wire.available())
   {
     I2C_cmd=Wire.read(); //first byte is the command
@@ -115,7 +122,7 @@ void requestEvent() //this is called when the master requests information. The r
       byte b[4];
       double d;
     }data;
-    
+
     F=I2C_param_d;
     F=constrain(F,0.001,5000);
     set_Freq_div(F);
@@ -125,9 +132,11 @@ void requestEvent() //this is called when the master requests information. The r
     data.d=F;
     Wire.write(data.b,4);
   }
-  
+
+  // TODO VPY: Add I2C commands (constants in Switchboard.ino) for handling relays
+
   else
     Wire.write(I2C_addr); //In case no specific commands are given, replies with its address. Can be used to check that the board is up and running, or for an address scan to find the boards that are connected.
-  
+
   I2C_cmd=0xFF; //clears the command buffer. Waits for a new one
 }

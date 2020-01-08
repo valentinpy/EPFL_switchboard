@@ -1,25 +1,32 @@
-/*Code for the slave boards (i.e. Single channel high voltage power supplies, SHVPS) of the Project Peta-pico-Voltron
-Target platform: Arduino micro
+/*Code for the switchboard boards of the Project derivated from Peta-pico-Voltron
+  Author: Valentin Py
+  E-mail: valentin.py@epfl.ch / valentin.py@gmail.com
+  Company: EPFL - LMTS
+  Date: 17.12.2019
 
-Copyright 2016 Samuel Rosset
-Distributed under the terms of the GNU General Public License GNU GPLv3
+  source:petapicovoltron.com
+  Target platform: Arduino micro + switchboard v1.0
 
-This file is part of shvps.
+  Copyright 2016-2019 Samuel Rosset - Valentin Py
+  Distributed under the terms of the GNU General Public License GNU GPLv3
 
-    shvps is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+  This file is part of Switchboard.
 
-    shvps is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+  shvps is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with shvps.  If not, see  <http://www.gnu.org/licenses/>
+  shvps is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with shvps.  If not, see  <http://www.gnu.org/licenses/>
 
 */
+
 double OCR_to_F(word OCR) //transforms the value of the Output compare register (16 bit) to a frequency
 {
   double Freq; //to store frequency
@@ -41,7 +48,7 @@ word PWM_to_V(word pwm_value) //transforms a 10 bit PWM value to a voltage, assu
   return(v_output_value);
 }
 
-word V_to_PWM(word V_value) //transforms a voltage setpoint into a 10 bit PWM value, assuming linear relationship 
+word V_to_PWM(word V_value) //transforms a voltage setpoint into a 10 bit PWM value, assuming linear relationship
 {
   word pwm_output_value;
   pwm_output_value=word((1023.0*double(V_value)/double(Vmax))+0.5);//+ 0.5 to round to closest value and not to lower value
@@ -52,7 +59,7 @@ word FilteredInputVoltage() //function averages 10 readings of input voltage to 
 {
   word input_V=0; //to store the input voltage
   word PWM_out; //to store the 10 bit value corresponding to the input
-  
+
   for (byte i=0; i<10; i++) //10 times. AnalogRead takes bout 0.1 ms. So it takes 1ms for the average. number of average could be decreased for faster execution
     input_V=input_V+analogRead(ExtVCtrl_pin); //no risk of overflow. analog read is on 10 bits, so the addition of 10 reads will be <2^16-1
   input_V=input_V/10; //average value
@@ -109,7 +116,7 @@ void update_EEPROM_string(word addr, byte n, char * c) //writes string c at addr
   }
 }
 
-void set_prescaler(double Freq) //sets the timer 1 prescaler to the optimal value, depending on the Frequency F 
+void set_prescaler(double Freq) //sets the timer 1 prescaler to the optimal value, depending on the Frequency F
 {
   if (Freq*Freq_div>245)
   {
@@ -153,7 +160,7 @@ void set_Freq_div(double Freq) //sets the software prescaler at the optimal valu
   Freq_div=byte(1+0.238422/Freq/2.0)*2;
 }
 
-void set_strobe_pulse() //sets the counter value to generate a trigger (or strobe) pulse) OCR1B is when the trigger pulse goes high. OCR1C is when the trigger pulse goes low 
+void set_strobe_pulse() //sets the counter value to generate a trigger (or strobe) pulse) OCR1B is when the trigger pulse goes high. OCR1C is when the trigger pulse goes low
 {
   //because of software prescaler (Freq_div), one period of the signal lasts for Freq_div*OCR1A.
   byte Strobe_down_tmp=Strobe_position+Strobe_duration; //value between 0 and 255 that indicates as function of the period when the trigger pulse must be turned off. May over flow (e.g. 250+10=5 -> signal goes down at the beginning of the period)
@@ -205,7 +212,7 @@ void dynamic_PID() //adapts the coefficient of the PID to the situation. For exa
 
 void switching()  //Switching control of the optocouplers (if onboard control, the switching is taken care of by the timer 1 (or is permanently on or off if in DC or off mode repspectively)
 {
-   
+
   if (SwSrc==2) //Switching is controlled with the push button
   {
     if (LatchMode) //if in latching mode, pressing the button toggles HV on/off
@@ -245,7 +252,7 @@ void switching()  //Switching control of the optocouplers (if onboard control, t
       OCR1A=F_to_OCR(F); //set output compare registers A and B
     }
   }
-  
+
   else if (SwMode==0 && Cycle_max>0) //if the box is set up for limited number of cycles and is currently off, pressing the button restarts a series of pulses
   {
     if (digitalRead(Button_pin)) //Push button to reset cycles
@@ -256,12 +263,12 @@ void switching()  //Switching control of the optocouplers (if onboard control, t
         if (SwMode_save>=2)
           SwMode=SwMode_save; //place board back in the previous mode (should be 2 or 3)
         else //should not happen, but set to switching in case previous mode was neither switching nor waveform
-          SwMode=2;  
+          SwMode=2;
         TCNT1 = 0; //reset counter to 0 so that the cycle starts from the beginning
         Freq_div_counter=0; //reset the software prescaler counter
         TIFR1 = (1 << OCF1A); //clear interrupt flags that may not yet have been treated
         TIMSK1 = (1 << OCIE1A); //Start counter
-      }    
+      }
     }
   }
 }
@@ -295,21 +302,21 @@ ISR(TIMER1_COMPA_vect) //internal frequency source OCR1A (timer 1 is in CTC mode
   }
   Freq_div_counter++;
   Freq_div_counter=Freq_div_counter%Freq_div;
-  
+
 }
 
 ISR(TIMER1_COMPB_vect)
 {
   if (Freq_div_counter==Strobe_Freq_div_counter_B)
   {
-    digitalWrite(Strobe_pin,HIGH);   
+    digitalWrite(Strobe_pin,HIGH);
   }
 }
 ISR(TIMER1_COMPC_vect)
 {
   if (Freq_div_counter==Strobe_Freq_div_counter_C)
   {
-    digitalWrite(Strobe_pin,LOW);    
+    digitalWrite(Strobe_pin,LOW);
   }
 }
 ISR(TIMER3_COMPA_vect)
