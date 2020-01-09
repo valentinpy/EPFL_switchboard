@@ -100,6 +100,25 @@ const int RelCmd_pin[]={A2, A3, A4, A5, A11, A9}; // digital pin used to control
 
 #define RELAUTO_MIN_LOW_VOLTAGE_TIME_MS 500 // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
 #define RELAUTO_TESTING_TIME_MS 500 // Time for testing disconnexion
+#define RELAUTO_WAITING_VOTLAGE_REG_TIME_MS 500 // Time to wait to wait for voltage to change
+
+#define RelAutoStateOff 0
+#define RelAutoReset 1
+#define RelAutoStateNormal 2
+#define RelAutoStateProbableShort 3
+#define RelAutoStateConfirmedShort_init 10
+#define RelAutoStateConfirmedShort_decreasing_voltage 11
+#define RelAutoStateConfirmedShort_deco_all 12
+// #define RelAutoStateConfirmedShort_waiting_deco 13
+#define RelAutoStateConfirmedShort_increasing_voltage 14
+#define RelAutoStateConfirmedShort_measure 15
+#define RelAutoStateConfirmedShort_reco 16
+#define RelAutoStateConfirmedShort_reco_wait 17
+#define RelAutoStateConfirmedShort_deco_wait 18
+#define RelAutoStateConfirmedShort_deco_wait_post 19
+
+
+// #define RelAutoStateConfirmedShort_finished
 
 char Name[21]; //store the board name
 
@@ -155,7 +174,13 @@ unsigned long RelAuto_shortcuircuit_trigger_raised_ms = 0; // last time short ci
 
 int RelAuto_shortcircuit_finder_index = -1; // index used to search short circuits in all relays
 unsigned long RelAuto_shortcircuit_finder_last_ms = 0; // last load disconnexion used to search short circuits in all relays [ms]
-
+unsigned long RelAuto_shortcircuit_voltage_reg_last_ms = 0;
+unsigned long RelAuto_shortcircuit_before_meas_last_ms = 0;
+unsigned long RelAuto_shortcircuit_before_deco_last_ms = 0;
+unsigned long RelAuto_shortcircuit_after_deco_last_ms = 0;
+int RelAutoState = RelAutoStateOff;
+word Vset_normal = 0;
+word Vset_reduced = 0;
 
 
 byte Wave_pts[255]; //array of voltage points for the arbitrary waveform 8bits to represent a normalized voltage between 0 and Vset

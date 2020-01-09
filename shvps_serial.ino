@@ -659,6 +659,7 @@ void serial_handler() {
     else if (strncmp(serial_buffer,"SRelOff",7) == 0) // Syntax: SRelOff n. n=-1 => all relays off
     {
       RelMode = RelMode_manual;
+      RelAutoState = RelAutoStateOff;
       strcpy(tmp,&serial_buffer[7]);  //skip the "SRelOff" command
       char *endptr=NULL;
       int n=strtol(tmp, &endptr, 10); //get relays which should be turned off
@@ -676,6 +677,7 @@ void serial_handler() {
     else if (strncmp(serial_buffer,"SRelOn",6) == 0) // Syntax: SRelOn n. n=-1 => all relays off
     {
       RelMode = RelMode_manual;
+      RelAutoState = RelAutoStateOff;
       strcpy(tmp,&serial_buffer[6]);  //skip the "SRelOn" command
       char *endptr=NULL;
       int n=strtol(tmp, &endptr, 10);  //get relays which should be turned off
@@ -689,16 +691,19 @@ void serial_handler() {
         Rel_printState();
       }
     }
-
-    else if (strncmp(serial_buffer,"SRelManual",10) == 0) // Syntax: SRelManual
-    {
-      RelMode = RelMode_manual;
-      Serial.print("SRelManual ");
-      Serial.println(RelMode);
-    }
+    //
+    // else if (strncmp(serial_buffer,"SRelManual",10) == 0) // Syntax: SRelManual
+    // {
+    //   RelMode = RelMode_manual;
+    //   RelAutoState = R
+    //   Rel_auto_off();
+    //   Serial.print("SRelManual ");
+    //   Serial.println(RelMode);
+    // }
 
     else if (strncmp(serial_buffer,"SRelAuto",8) == 0) // Syntax: SRelAuto n. If n== -1 => not recheck, if n>0, n?delay [s] betwwen rechecks
     {
+      RelAutoState = RelAutoReset;
       // Rel_allOn(); //activate all relays
       // Rel_printState();
       // RelAuto_searching_short = false; // reset flags
@@ -721,7 +726,7 @@ void serial_handler() {
       Serial.print(n);
       Serial.println("[s]");
 
-      Rel_auto_reset();
+      RelAutoState == RelAutoReset;
     }
 
 
