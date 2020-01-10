@@ -98,7 +98,7 @@ const int RelCmd_pin[]={A2, A3, A4, A5, A11, A9}; // digital pin used to control
 #define RelMode_auto_disconnect_once 1
 #define RelMode_auto_disconnect_retry 2
 
-#define RELAUTO_MIN_LOW_VOLTAGE_TIME_MS 500 // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
+#define RELAUTO_MIN_LOW_VOLTAGE_TIME_MS 50 // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
 #define RELAUTO_TESTING_TIME_MS 500 // Time for testing disconnexion
 #define RELAUTO_WAITING_VOTLAGE_REG_TIME_MS 500 // Time to wait to wait for voltage to change
 
@@ -166,7 +166,7 @@ bool PowerJack; //0: The power jack is not used to power the board. In that case
 //TODO VPY: add some variables for relay control
 bool RelState[6] = {false, false, false, false, false, false};
 byte RelMode = RelMode_manual;
-word RelRetryPeriod_s = 120;
+unsigned long RelRetryPeriod_s = 120;
 unsigned long RelRetry_last_ms = 0;
 // unsigned long RelAuto_counter_last_ms = 0;
 bool RelAuto_searching_short = false; // short circuit searching in progress

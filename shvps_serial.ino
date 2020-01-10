@@ -738,7 +738,8 @@ void serial_handler() {
       Serial.println(Wave_pts_mes[index]); //returns the queried point
     }
 
-    else
-    Serial.println("Err"); //returns "Err" to say that command wasn't understood
+    else{
+      Serial.println("Err"); //returns "Err" to say that command wasn't understood
+    }
   }
 }

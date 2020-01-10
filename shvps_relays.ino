@@ -92,16 +92,26 @@ void Rel_autodisconnect(){
     RelAuto_shortcuircuit_trigger_raised_ms = 0; // reset timer
     RelAuto_shortcircuit_finder_index = -1;
 
+    // Ensure we have correct target voltage
+    if(Vset_normal>0){
+      Vset = Vset_normal;
+    }
+
     //Next state: stay here
     RelAutoState = RelAutoStateOff;
   }
 
   else if(RelAutoState == RelAutoReset){ // Reset
-    RelRetry_last_ms = millis();
+    RelRetry_last_ms = millis(); // store current time for
     // RelAuto_searching_short = false; // reset flags
     RelAuto_shortcuircuit_trigger_raised_ms = 0; // reset timer
     RelAuto_shortcircuit_finder_index = -1;
     Rel_allOn();
+
+    // Ensure we have correct target voltage
+    if(Vset_normal>0){
+      Vset = Vset_normal;
+    }
 
     // Next state
     RelAutoState = RelAutoStateNormal;
@@ -118,10 +128,10 @@ void Rel_autodisconnect(){
       RelAutoState = RelAutoStateProbableShort;
     }
     else if ((RelMode == RelMode_auto_disconnect_retry) && ((millis() - RelRetry_last_ms) > (RelRetryPeriod_s*1000))){
-      RelAutoState = RelAutoReset; // TODO new state for that case ?
+      RelAutoState = RelAutoReset; // TODO new state for that case
     }
     else{
-      // Stay there
+      // Stay there as there is no short circuit detected
       RelAutoState = RelAutoStateNormal;
     }
   }
@@ -145,6 +155,7 @@ void Rel_autodisconnect(){
     // init conditions for searching short circuit:
     RelAuto_shortcircuit_finder_last_ms = 0; // start immediately
     RelAuto_shortcircuit_finder_index = -1; // start by relay 0
+    RelRetry_last_ms = millis();
 
     // store normal Voltage
     Vset_normal = Vset;
@@ -256,7 +267,7 @@ void Rel_autodisconnect(){
 
   else if (RelAutoState == RelAutoStateConfirmedShort_deco_wait_post){
     if((millis() - RelAuto_shortcircuit_after_deco_last_ms) > 500){
-      if (RelAuto_shortcircuit_finder_index<(RelNbRel-2)){
+      if (RelAuto_shortcircuit_finder_index<(RelNbRel)){
         RelAutoState = RelAutoStateConfirmedShort_reco;
       }
       else{
