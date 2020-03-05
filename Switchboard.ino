@@ -98,9 +98,10 @@ const int RelCmd_pin[]={A2, A3, A4, A5, A11, A9}; // digital pin used to control
 #define RelMode_auto_disconnect_once 1
 #define RelMode_auto_disconnect_retry 2
 
-#define RELAUTO_MIN_LOW_VOLTAGE_TIME_MS 50 // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
+#define RELAUTO_MIN_LOW_VOLTAGE_TIME_MS 200 // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
 #define RELAUTO_TESTING_TIME_MS 500 // Time for testing disconnexion
 #define RELAUTO_WAITING_VOTLAGE_REG_TIME_MS 500 // Time to wait to wait for voltage to change
+#define REL_LONG_SHORTCIRCUIT_PROTECTION_TIME_MS 10000 // Max short circuit time, at all time, to protect DCDC
 
 #define RelAutoStateOff 0
 #define RelAutoReset 1
@@ -178,6 +179,8 @@ unsigned long RelAuto_shortcircuit_voltage_reg_last_ms = 0;
 unsigned long RelAuto_shortcircuit_before_meas_last_ms = 0;
 unsigned long RelAuto_shortcircuit_before_deco_last_ms = 0;
 unsigned long RelAuto_shortcircuit_after_deco_last_ms = 0;
+unsigned long Rel_long_shortcircuit_protection_last_ms = 0;
+unsigned long Rel_long_shortcircuit_protection_cancel_last_ms = 0;
 int RelAutoState = RelAutoStateOff;
 word Vset_normal = 0;
 word Vset_reduced = 0;
@@ -447,6 +450,7 @@ void loop()
   switching(); //turns on or off the optocouplers depending on the situation
 
   Rel_autodisconnect(); // Handle turning off relays that cause short circuits if activated
+  Rel_long_shortcircuit_protection(); // Avoid long short circuit to protect DCDC
 
   //set the state of the LED to indicate whether high-voltage is applied at the board output
   if ((Vnow>40) && SwState==true){

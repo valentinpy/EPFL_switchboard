@@ -73,16 +73,60 @@ void Rel_apply(){
   }
 }
 
-void Rel_printState(){
-  // Print rekays state
-  Serial.print("Relays state: ");
-  for(int i=0; i< RelNbRel; i++){
-    Serial.print(RelState[i]);
-    Serial.print(",");
-  }
-  Serial.println("");
+bool Rel_currentlyTesting(){
+  return (!((RelAutoState == RelAutoStateNormal) || (RelAutoState == RelAutoStateOff)));
 }
 
+
+void Rel_printState(){
+  // Print rekays state
+  if(!(Rel_currentlyTesting())){ // Not curently solving a short-circuit problem
+    Serial.print("Relays state: ");
+    for(int i=0; i< RelNbRel; i++){
+      Serial.print(RelState[i]);
+      Serial.print(",");
+    }
+    Serial.println("");
+  }
+  else{ // We are trying to find the source of short-circuit, current relay state doesn't make sense
+    Serial.print("Relays state: ");
+    for(int i=0; i< RelNbRel; i++){
+      Serial.print("2");
+      Serial.print(",");
+    }
+    Serial.println("");
+  }
+}
+
+void Rel_long_shortcircuit_protection(){
+  // unsigned long Rel_long_shortcircuit_protection_last_ms = 0; REL_LONG_SHORTCIRCUIT_PROTECTION_TIME_MS
+
+  // detect begin of short circuit
+  if((Vnow < (Vset/2)) && (Vset>50)){ // low voltage
+    Rel_long_shortcircuit_protection_cancel_last_ms = 0;
+    if(Rel_long_shortcircuit_protection_last_ms == 0){ // Low voltage first time
+      Rel_long_shortcircuit_protection_last_ms = millis();
+    }
+    else if ((Rel_long_shortcircuit_protection_last_ms != 0) &&(millis() - Rel_long_shortcircuit_protection_last_ms) > REL_LONG_SHORTCIRCUIT_PROTECTION_TIME_MS){
+      RelMode = RelMode_manual;
+      Rel_allOff();
+      Rel_long_shortcircuit_protection_last_ms = 0;
+      // Serial.println("all relays disconnected");
+    }
+    else{
+      // Serial.println(millis() - Rel_long_shortcircuit_protection_last_ms);
+    }
+  }
+  else{ // not low voltage anymore for 500ms
+    if (Rel_long_shortcircuit_protection_cancel_last_ms == 0){
+      Rel_long_shortcircuit_protection_cancel_last_ms = millis();
+    }
+    if((millis()-Rel_long_shortcircuit_protection_cancel_last_ms) > 500){
+      Rel_long_shortcircuit_protection_last_ms = 0;
+      Rel_long_shortcircuit_protection_cancel_last_ms = 0;
+    }
+  }
+}
 
 void Rel_autodisconnect(){
   // Handle autodisconnexion

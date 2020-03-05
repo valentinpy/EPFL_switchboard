@@ -47,7 +47,7 @@ void serialEvent() {
       serial_buffer_i++;
       serial_buffer[serial_buffer_i] = '\0'; // Keep the array NULL-terminated
     }
-    if(serial_buffer_i>=19) {
+    if(serial_buffer_i>=29) {
       //reset string if buffer full
       serial_buffer_i=0;
     }
@@ -57,7 +57,7 @@ void serialEvent() {
 void serial_handler() {
   if (serial_EOS==true){
     //if a complete command has been read on the serial port
-    char tmp[20];
+    char tmp[25];
     serial_EOS=false; //reset EOS value
     serial_buffer_i=0; //reset buffer pointer
 
@@ -170,11 +170,20 @@ void serial_handler() {
       EEPROM.put(EE_F,F);  //save the Frequency
     }
 
+    else if (strncmp(serial_buffer, "QTestingShort", 13) == 0){
+        Serial.println(Rel_currentlyTesting());
+    }
     else if (strncmp(serial_buffer,"SVset",5) == 0){
-      //Set voltage setpoint
+      //Set voltage setpoint, only if we are not testing Relays
       strcpy(tmp,&serial_buffer[5]);  //skip the "SVset" command
-      Vset=constrain(word(atoi(tmp)),0,Vmax);
-      Serial.println(Vset);
+      if(!Rel_currentlyTesting()){
+        Vset=constrain(word(atoi(tmp)),0,Vmax);
+        Vset_normal = Vset;
+        Serial.println(Vset);
+      }
+      else{
+        Serial.println("Err Currently testing relays, try later");
+      }
     }
     else if (strncmp(serial_buffer,"QVset",5) == 0){
       //Query voltage setpoint
