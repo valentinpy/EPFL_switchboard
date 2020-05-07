@@ -73,6 +73,14 @@ void Rel_apply(){
   }
 }
 
+void Rel_apply_testing(){
+  // apply RelState values to all relays
+  for(int i=0; i< RelNbRel; i++){
+    RelState[i] = RelState_testing[i];
+    digitalWrite(RelCmd_pin[i], RelState_testing[i]);
+  }
+}
+
 bool Rel_currentlyTesting(){
   return (!((RelAutoState == RelAutoStateNormal) || (RelAutoState == RelAutoStateOff)));
 }
@@ -89,18 +97,16 @@ void Rel_printState(){
     Serial.println("");
   }
   else{ // We are trying to find the source of short-circuit, current relay state doesn't make sense
-    Serial.print("Relays state: ");
-    for(int i=0; i< RelNbRel; i++){
-      Serial.print("2");
-      Serial.print(",");
-    }
-    Serial.println("");
+  Serial.print("Relays state: ");
+  for(int i=0; i< RelNbRel; i++){
+    Serial.print("2");
+    Serial.print(",");
   }
+  Serial.println("");
+}
 }
 
 void Rel_long_shortcircuit_protection(){
-  // unsigned long Rel_long_shortcircuit_protection_last_ms = 0; REL_LONG_SHORTCIRCUIT_PROTECTION_TIME_MS
-
   // detect begin of short circuit
   if((Vnow < (Vset/2)) && (Vset>50)){ // low voltage
     Rel_long_shortcircuit_protection_cancel_last_ms = 0;
@@ -111,10 +117,6 @@ void Rel_long_shortcircuit_protection(){
       RelMode = RelMode_manual;
       Rel_allOff();
       Rel_long_shortcircuit_protection_last_ms = 0;
-      // Serial.println("all relays disconnected");
-    }
-    else{
-      // Serial.println(millis() - Rel_long_shortcircuit_protection_last_ms);
     }
   }
   else{ // not low voltage anymore for 500ms
@@ -131,10 +133,11 @@ void Rel_long_shortcircuit_protection(){
 void Rel_autodisconnect(){
   // Handle autodisconnexion
 
-  if(RelAutoState == RelAutoStateOff){ // Disabled
+  if(RelAutoState == RelAutoStateOff){
+    // Disabled
     RelRetry_last_ms = 0;
     RelAuto_shortcuircuit_trigger_raised_ms = 0; // reset timer
-    RelAuto_shortcircuit_finder_index = -1;
+    RelAuto_shortcircuit_finder_index = 0;
 
     // Ensure we have correct target voltage
     if(Vset_normal>0){
@@ -145,11 +148,15 @@ void Rel_autodisconnect(){
     RelAutoState = RelAutoStateOff;
   }
 
-  else if(RelAutoState == RelAutoReset){ // Reset
-    RelRetry_last_ms = millis(); // store current time for
-    // RelAuto_searching_short = false; // reset flags
-    RelAuto_shortcuircuit_trigger_raised_ms = 0; // reset timer
-    RelAuto_shortcircuit_finder_index = -1;
+  else if(RelAutoState == RelAutoReset){
+    // Reset
+
+    //reset everything that has to be reseted and activate all relays
+    RelRetry_last_ms = millis(); // store current time for automatic reconnection
+    RelAuto_shortcuircuit_trigger_raised_ms = 0; // reset short circuit detection timer
+    RelAuto_shortcircuit_voltage_reg_last_ms = 0; // reset voltage change timer
+    RelAuto_shortcircuit_finder_index = 0;
+    SwMode_save_autorelay = SwMode;
     Rel_allOn();
 
     // Ensure we have correct target voltage
@@ -157,176 +164,192 @@ void Rel_autodisconnect(){
       Vset = Vset_normal;
     }
 
-    // Next state
+    // Next state, normal mode
     RelAutoState = RelAutoStateNormal;
   }
 
-  // Short circuit detection
-  else if(RelAutoState == RelAutoStateNormal) // Normal mode
-  {
-    if((Vnow < (Vset/2)) && (Vset>50)){ // Low voltage
-      // Store time
+  else if(RelAutoState == RelAutoStateNormal) {
+    // SwMode back to normal
+    SwMode = SwMode_save_autorelay;
+
+    // Normal mode: detect short circuits and handle auto retry if activated
+    Vthreshold = (word)((RELAUTO_THRESHOLD_PERCENT/100.0)*(float)Vset);
+
+    if((Vnow < (Vthreshold)) && (Vset>50) && (RelAuto_shortcuircuit_trigger_raised_ms == 0)){
+      // Low voltage: first time
+      // Store time, stay in this state
       RelAuto_shortcuircuit_trigger_raised_ms = millis();
-
-      // Next state: confirmation of short circuit
-      RelAutoState = RelAutoStateProbableShort;
-    }
-    else if ((RelMode == RelMode_auto_disconnect_retry) && ((millis() - RelRetry_last_ms) > (RelRetryPeriod_s*1000))){
-      RelAutoState = RelAutoReset; // TODO new state for that case
-    }
-    else{
-      // Stay there as there is no short circuit detected
       RelAutoState = RelAutoStateNormal;
     }
-  }
-
-  else if (RelAutoState == RelAutoStateProbableShort){
-    if(Vnow > (Vset/2)) {// && (Vset>50)){ // Low voltage
-      // Next state, as short circuit was temporary
+    else if ((Vnow >= (Vthreshold)) && (Vset>50)) {
+      // No low voltage anymore
+      // Reset short circuit timer and stay in this state
+      RelAuto_shortcuircuit_trigger_raised_ms = 0;
       RelAutoState = RelAutoStateNormal;
     }
-    else if ((millis()-RelAuto_shortcuircuit_trigger_raised_ms) > RELAUTO_MIN_LOW_VOLTAGE_TIME_MS){
-      // Next state: short circuit confirmed
+
+    else if((Vnow < (Vthreshold)) && (Vset>50) && ((millis() - RelAuto_shortcuircuit_trigger_raised_ms) >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS)){
+      // Short circuit confirmed
+      // Go to confirmed short circuit init case
+      RelAuto_shortcircuit_voltage_reg_last_ms = 0;
       RelAutoState = RelAutoStateConfirmedShort_init;
     }
-    else{
-      // Next state: wait for sufficient time
-      RelAutoState = RelAutoStateProbableShort;
+
+    if ((RelMode == RelMode_auto_disconnect_retry) && ((millis() - RelRetry_last_ms) > (RelRetryPeriod_s*1000))){
+      // Autoretry mode activated and time interval for checking elapsed
+      // Go to reset state
+      RelAutoState = RelAutoReset;
     }
   }
 
   else if (RelAutoState == RelAutoStateConfirmedShort_init){
-    // init conditions for searching short circuit:
-    RelAuto_shortcircuit_finder_last_ms = 0; // start immediately
-    RelAuto_shortcircuit_finder_index = -1; // start by relay 0
-    RelRetry_last_ms = millis();
+    // Save current voltage, decrease voltage, wait, and disconnect everything, and cancel Switching
+    SwMode_save_autorelay = SwMode;
+    SwMode = 1;
 
-    // store normal Voltage
-    Vset_normal = Vset;
-    Vset_reduced = 0;//Vset/5;
+    if (RelAuto_shortcircuit_voltage_reg_last_ms == 0){
+      // Serial.println("state: confirmed short init");
+      // Set voltage to 0, store nominal voltage
+      Vset_normal = Vset;
+      Vset = 0;
 
-    // Apply lower voltage
-    Vset = Vset_reduced;
+      // Store current time
+      RelAuto_shortcircuit_voltage_reg_last_ms = millis();
 
-    // Store time
-    RelAuto_shortcircuit_voltage_reg_last_ms = millis();
-
-    // Next state: wait for voltage to decrease
-    RelAutoState = RelAutoStateConfirmedShort_decreasing_voltage;
-  }
-
-  else if (RelAutoState == RelAutoStateConfirmedShort_decreasing_voltage){
-    if((millis() - RelAuto_shortcircuit_voltage_reg_last_ms) > RELAUTO_WAITING_VOTLAGE_REG_TIME_MS){
-      // Next step: disconnexion of relays
-      RelAutoState = RelAutoStateConfirmedShort_deco_all;
+      // Stay in that state for a moment
+      RelAutoState = RelAutoStateConfirmedShort_init;
     }
-    else{
-      // Wait here until timer elapsed
-      RelAutoState = RelAutoStateConfirmedShort_decreasing_voltage;
-    }
-  }
-
-  else if (RelAutoState == RelAutoStateConfirmedShort_deco_all){
-    if (RelAuto_shortcircuit_finder_index == -1){
+    else if ((millis() - RelAuto_shortcircuit_voltage_reg_last_ms) >= RELAUTO_WAITING_VOTLAGE_REG_TIME_MS){
+      // Delay elapsed, voltage should have dropped, disconnect everything, start new timer and go to next state
       Rel_allOff();
+      RelAutoState = RelAutoStateConfirmedShort_waiting_deco;
+      RelAutoStateConfirmedShort_waiting_deco_last_ms = millis();
     }
     else{
-      Rel_setRel(RelAuto_shortcircuit_finder_index, false);
-    }
-    Vset = Vset_normal;
-
-    // Store time
-    RelAuto_shortcircuit_voltage_reg_last_ms = millis();
-
-    // Next state: waiting for voltage to increase
-    RelAutoState = RelAutoStateConfirmedShort_increasing_voltage;
-  }
-
-  else if (RelAutoState == RelAutoStateConfirmedShort_increasing_voltage){
-    if((millis() - RelAuto_shortcircuit_voltage_reg_last_ms) > RELAUTO_WAITING_VOTLAGE_REG_TIME_MS){
-      // Next step: disconnexion of relays
-      RelAutoState = RelAutoStateConfirmedShort_measure;
-    }
-    else{
-      // Wait here until timer elapsed
-      RelAutoState = RelAutoStateConfirmedShort_increasing_voltage;
+      //stay in that case until delay elapsed
+      RelAutoState = RelAutoStateConfirmedShort_init;
     }
   }
 
-  else if (RelAutoState == RelAutoStateConfirmedShort_measure){
-    if ((RelAuto_shortcircuit_finder_index >= (RelNbRel-1))&& (Vnow > (Vset/2))){
-      RelAutoState = RelAutoStateNormal;
-    }
-    else if ((RelAuto_shortcircuit_finder_index == -1) && (Vnow < (Vset/2))){
-      // Even with all realys disconnected, no voltage!
-      RelAutoState = RelAutoStateOff;
-    }
-    else if ((RelAuto_shortcircuit_finder_index == -1) && (Vnow > (Vset/2))){
-      // All was disconnected, we have voltage
-      RelAuto_shortcircuit_finder_index++;
-      RelAutoState = RelAutoStateConfirmedShort_reco;
-    }
-    else if ((RelAuto_shortcircuit_finder_index >-1) && (Vnow > (Vset/2))){
-      // last reconnexion of relay was not a problem, continue
-      RelAuto_shortcircuit_finder_index++;
-      RelAutoState = RelAutoStateConfirmedShort_reco;
-    }
-    else if ((RelAuto_shortcircuit_finder_index >-1) && (Vnow < (Vset/2))){
-      // last reconnexion of relay was a problem. Disconnect and continue
-      // Rel_setRel(RelAuto_shortcircuit_finder_index, false);
-      RelAuto_shortcircuit_finder_index++;
-      Vset = Vset_reduced;
-      RelAuto_shortcircuit_before_deco_last_ms = millis();
-      RelAutoState = RelAutoStateConfirmedShort_deco_wait;
-    }
-  }
-
-  else if (RelAutoState == RelAutoStateConfirmedShort_reco){
-    Rel_setRel(RelAuto_shortcircuit_finder_index, true);
-    RelAuto_shortcircuit_before_meas_last_ms = millis();
-    RelAutoState = RelAutoStateConfirmedShort_reco_wait;
-  }
-  else if (RelAutoState == RelAutoStateConfirmedShort_reco_wait){
-    if((millis() - RelAuto_shortcircuit_before_meas_last_ms) > 500){
-      RelAutoState = RelAutoStateConfirmedShort_measure;
-    }
-    else{
-      // Wait here until timer elapsed
-      RelAutoState = RelAutoStateConfirmedShort_reco_wait;
-    }
-  }
-
-  else if (RelAutoState == RelAutoStateConfirmedShort_deco_wait){
-    if((millis() - RelAuto_shortcircuit_before_deco_last_ms) > 500){
-      Rel_setRel(RelAuto_shortcircuit_finder_index-1, false);
+  else if (RelAutoState == RelAutoStateConfirmedShort_waiting_deco) {
+    // wait for relays to disconnect
+    if ((millis() - RelAutoStateConfirmedShort_waiting_deco_last_ms) > 100){
+      //relays must be disconnected yet, let's increase voltage again
+      RelAuto_shortcircuit_incr_volt_last_ms = millis();
       Vset = Vset_normal;
-      RelAuto_shortcircuit_after_deco_last_ms = millis();
-      RelAutoState = RelAutoStateConfirmedShort_deco_wait_post;
-    }
-    else{
-      // Wait here until timer elapsed
-      RelAutoState = RelAutoStateConfirmedShort_deco_wait;
+      RelAutoState = RelAutoStateConfirmedShort_start_searching;
     }
   }
 
-  else if (RelAutoState == RelAutoStateConfirmedShort_deco_wait_post){
-    if((millis() - RelAuto_shortcircuit_after_deco_last_ms) > 500){
-      if (RelAuto_shortcircuit_finder_index<(RelNbRel)){
-        RelAutoState = RelAutoStateConfirmedShort_reco;
+  else if (RelAutoState == RelAutoStateConfirmedShort_start_searching) {
+
+    //  all relays disconnected
+    //increase voltage + wait
+    if((millis() - RelAuto_shortcircuit_incr_volt_last_ms) > 500){
+      // Voltage should have raised now (all relays disconnected)
+      Vthreshold = (word)((RELAUTO_THRESHOLD_PERCENT/100.0)*(float)Vset);
+      if(Vnow < Vthreshold){
+        // Serial.println("Voltage still too low, aborting - settting target voltage to 0");
+        Rel_allOff();
+        Vset = 0;
+        Vset_normal = 0;
+        RelAutoState = RelAutoStateOff;
       }
       else{
-        RelAutoState = RelAutoStateNormal;
+        // Go to next state: trying all relays
+        RelAuto_shortcircuit_finder_index = 0;
+
+        for (int i=0; i<6; i++){
+          RelState_testing[i] = false;
+        }
+        RelAutoState = RelAutoStateConfirmedShort_searching_1;
+        RelAuto_shortcircuit_deco_last_ms = 0;
       }
-    }
-    else{
-      // Wait here until timer elapsed
-      RelAutoState = RelAutoStateConfirmedShort_deco_wait_post;
     }
   }
 
-  else{
-    // Unknow case
-    // Should never happen
-    RelAutoState = RelAutoStateOff;
+  else if (RelAutoState == RelAutoStateConfirmedShort_searching_1){
+      //voltage is on, relays are off
+      // relay i => on
+      //wait
+      if (RelAuto_shortcircuit_deco_last_ms == 0){
+        // Relay on, then start waiting
+        Rel_setRel(RelAuto_shortcircuit_finder_index, true);
+        RelAuto_shortcircuit_deco_last_ms = millis();
+        RelAutoState = RelAutoStateConfirmedShort_searching_1; //stay here
+      }
+      else if ((millis() - RelAuto_shortcircuit_deco_last_ms) > 500){
+        RelAutoState = RelAutoStateConfirmedShort_searching_2; // go to next state
+      }
+      else{
+        //wait here
+        RelAutoState = RelAutoStateConfirmedShort_searching_1;
+      }
+  }
+
+  else if (RelAutoState == RelAutoStateConfirmedShort_searching_2){
+    // measure voltage, store SwState
+    Vthreshold = (word)((RELAUTO_THRESHOLD_PERCENT/100.0)*(float)Vset);
+    if(Vnow > Vthreshold){
+      RelState_testing[RelAuto_shortcircuit_finder_index] = true;
+    }
+
+    // decrease voltage
+    Vset_normal = Vset;
+    Vset = 0;
+
+
+    // start waiting
+    RelAuto_shortcircuit_deco_last_ms = millis();
+    RelAutoState = RelAutoStateConfirmedShort_searching_3;
+
+  }
+
+  else if (RelAutoState == RelAutoStateConfirmedShort_searching_3){
+    if((millis() - RelAuto_shortcircuit_deco_last_ms) > 500){
+      //disconnect and wait in next state
+      Rel_setRel(RelAuto_shortcircuit_finder_index, false);
+      RelAuto_shortcircuit_deco_last_ms = millis();
+      RelAutoState = RelAutoStateConfirmedShort_searching_4;
+    }
+    else{
+      //wait here until V=0
+      RelAutoState = RelAutoStateConfirmedShort_searching_3;
+    }
+  }
+
+  else if (RelAutoState == RelAutoStateConfirmedShort_searching_4){
+    if((millis() - RelAuto_shortcircuit_deco_last_ms) > 500){
+        //set voltage back on and start waiting
+        Vset = Vset_normal;
+        RelAuto_shortcircuit_deco_last_ms = millis();
+        RelAutoState = RelAutoStateConfirmedShort_searching_5;
+    }
+    else{
+      //wait here until relays disconnected
+      RelAutoState = RelAutoStateConfirmedShort_searching_4;
+    }
+  }
+
+  else if (RelAutoState == RelAutoStateConfirmedShort_searching_5){
+    if((millis() - RelAuto_shortcircuit_deco_last_ms) > 500){
+      if(RelAuto_shortcircuit_finder_index>=5){
+          // Serial.println("finished");
+          Rel_apply_testing();
+          RelRetry_last_ms = millis();
+          RelAutoState = RelAutoStateNormal;
+      }
+      else{
+          // start for next relay
+          RelAuto_shortcircuit_finder_index++;
+          RelAuto_shortcircuit_deco_last_ms = 0;
+          RelAutoState = RelAutoStateConfirmedShort_searching_1;
+          // Serial.println("Finished for a relay, testing next one");
+      }
+    }
+    else{
+      //wait here until voltage back to normal
+      RelAutoState = RelAutoStateConfirmedShort_searching_5;
+    }
   }
 }

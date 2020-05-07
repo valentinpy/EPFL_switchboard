@@ -98,25 +98,26 @@ const int RelCmd_pin[]={A2, A3, A4, A5, A11, A9}; // digital pin used to control
 #define RelMode_auto_disconnect_once 1
 #define RelMode_auto_disconnect_retry 2
 
+#define RELAUTO_THRESHOLD_PERCENT 80.0 // Time for testing disconnexion
 #define RELAUTO_MIN_LOW_VOLTAGE_TIME_MS 200 // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
 #define RELAUTO_TESTING_TIME_MS 500 // Time for testing disconnexion
 #define RELAUTO_WAITING_VOTLAGE_REG_TIME_MS 500 // Time to wait to wait for voltage to change
 #define REL_LONG_SHORTCIRCUIT_PROTECTION_TIME_MS 10000 // Max short circuit time, at all time, to protect DCDC
 
+
 #define RelAutoStateOff 0
 #define RelAutoReset 1
 #define RelAutoStateNormal 2
-#define RelAutoStateProbableShort 3
 #define RelAutoStateConfirmedShort_init 10
-#define RelAutoStateConfirmedShort_decreasing_voltage 11
-#define RelAutoStateConfirmedShort_deco_all 12
-// #define RelAutoStateConfirmedShort_waiting_deco 13
-#define RelAutoStateConfirmedShort_increasing_voltage 14
-#define RelAutoStateConfirmedShort_measure 15
-#define RelAutoStateConfirmedShort_reco 16
-#define RelAutoStateConfirmedShort_reco_wait 17
-#define RelAutoStateConfirmedShort_deco_wait 18
-#define RelAutoStateConfirmedShort_deco_wait_post 19
+#define RelAutoStateConfirmedShort_waiting_deco 11
+#define RelAutoStateConfirmedShort_start_searching 12
+#define RelAutoStateConfirmedShort_searching_1 13
+#define RelAutoStateConfirmedShort_searching_2 14
+#define RelAutoStateConfirmedShort_searching_3 15
+#define RelAutoStateConfirmedShort_searching_4 16
+#define RelAutoStateConfirmedShort_searching_5 17
+
+
 
 
 // #define RelAutoStateConfirmedShort_finished
@@ -164,27 +165,33 @@ byte StrobeMode; //strobe mode : 0-> no strobe pulse. 1-> strobe pulse at fixed 
 word Strobe_speed=306;  //in strobe mode 2, it will take 5 s to strobe over one complete period.
 bool PowerJack; //0: The power jack is not used to power the board. In that case (multi-channel configuration or touchscreen + battery), we should not prevent EMCO to power up if jack is not plugged.
 
-//TODO VPY: add some variables for relay control
-bool RelState[6] = {false, false, false, false, false, false};
-byte RelMode = RelMode_manual;
-unsigned long RelRetryPeriod_s = 120;
-unsigned long RelRetry_last_ms = 0;
-// unsigned long RelAuto_counter_last_ms = 0;
-bool RelAuto_searching_short = false; // short circuit searching in progress
-unsigned long RelAuto_shortcuircuit_trigger_raised_ms = 0; // last time short circuit detected
-
-int RelAuto_shortcircuit_finder_index = -1; // index used to search short circuits in all relays
-unsigned long RelAuto_shortcircuit_finder_last_ms = 0; // last load disconnexion used to search short circuits in all relays [ms]
-unsigned long RelAuto_shortcircuit_voltage_reg_last_ms = 0;
-unsigned long RelAuto_shortcircuit_before_meas_last_ms = 0;
-unsigned long RelAuto_shortcircuit_before_deco_last_ms = 0;
-unsigned long RelAuto_shortcircuit_after_deco_last_ms = 0;
+// long term short circuit protection
 unsigned long Rel_long_shortcircuit_protection_last_ms = 0;
 unsigned long Rel_long_shortcircuit_protection_cancel_last_ms = 0;
+
+//TODO VPY: add some variables for relay control
+bool RelState[6] = {false, false, false, false, false, false};
+bool RelState_testing[6] = {false, false, false, false, false, false};
+
+byte RelMode = RelMode_manual;
+
+unsigned long RelRetryPeriod_s = 120;
+unsigned long RelRetry_last_ms = 0;
+unsigned long RelAuto_shortcuircuit_trigger_raised_ms = 0; // last time short circuit detected
+
+int RelAuto_shortcircuit_finder_index = 0; // index used to search short circuits in all relays
+unsigned long RelAuto_shortcircuit_voltage_reg_last_ms = 0;
+unsigned long RelAutoStateConfirmedShort_waiting_deco_last_ms = 0;
+unsigned long RelAuto_shortcircuit_incr_volt_last_ms = 0;
+unsigned long RelAuto_shortcircuit_deco_last_ms = 0;
+byte SwMode_save_autorelay; // for saving SwMode when disabled during short circuit detection
+
+
+
 int RelAutoState = RelAutoStateOff;
 word Vset_normal = 0;
 word Vset_reduced = 0;
-
+word Vthreshold;
 
 byte Wave_pts[255]; //array of voltage points for the arbitrary waveform 8bits to represent a normalized voltage between 0 and Vset
 byte Wave_pts_mes[255]; //array of voltage points to save the measured output (by the HVPS) of the arbitrary waveform.
