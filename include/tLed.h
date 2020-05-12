@@ -10,9 +10,9 @@ public:
 
 private:
   bool state;
-  int lastRun;
+  unsigned long lastRun;
 
-  const int PERIOD_MS=100;
+  const int PERIOD_MS=500;
   const int HV_LED_PIN=13;
 };
 #endif
