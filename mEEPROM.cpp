@@ -3,21 +3,7 @@
 #include <EEPROM.h> //Some parameters stored in EEPROM, such as slave I2C address and board maximal voltage. PID paramters could be stored there as well
 
 void MEEPROM::setup(){
-
-}
-
-void MEEPROM::run(){
-
-}
-
-double MEEPROM::read_double(word aAddr) //reads a double from the EEPROM starting at address addr (4bytes)
-{
-  double x;
-  EEPROM.get(aAddr,x);
-  if (isnan(x)) {  //can happen if EEPROM was never written (i.e. the 4 bytes are 255 255 255 255)
-    x=0;
-  }
-  return x;
+  return;
 }
 
 void MEEPROM::read_string(word aAddr, byte an, char * c) //reads a string from EEPROM at address addr, and with a length of n or less (n includes the termination character \0) and store it in C

@@ -1,5 +1,7 @@
 #include "Arduino.h"
 #include "include/tComm.h"
+#include "include/mEEPROM.h"
+#include <EEPROM.h>
 #include "include/mSerialCommand.h"
 
 mSerialCommand sCmd;     // The demo SerialCommand object
@@ -51,12 +53,23 @@ void TComm::run(){
   return;
 }
 
-
 void TComm::QVmax(){
-
+  unsigned int Vmax;
+  EEPROM.get(MEEPROM::ADR_VMAX, Vmax);
+  Serial.println(Vmax);
 }
 void TComm::SVmax(){
-
+    char *arg;
+    arg = sCmd.next();
+    if (arg == NULL) {
+      Serial.println("Err");
+      return;
+    }
+    else {
+      Serial.println(arg);
+      unsigned int val = atoi(arg); // TODO: to be changed to handle args which are not a number!
+      EEPROM.put(MEEPROM::ADR_VMAX,val);
+    }
 }
 void TComm::SVset(){
 
@@ -134,7 +147,6 @@ void TComm::SOCon(){
 
 }
 void TComm::SOCoff(){
-
 }
 void TComm::SOCF(){
 
@@ -152,7 +164,7 @@ void TComm::SHB0(){
 
 }
 void TComm::QHB(){
-  
+
 }
 
 // This gets set as the default handler, and gets called when no other command matches.

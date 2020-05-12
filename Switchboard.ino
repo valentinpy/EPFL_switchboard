@@ -64,7 +64,6 @@ void setup() {
 // Big old loop
 //------------------------------------------------------
 void loop() {
-  // gMEEPROM.run();
   gTComm.run();
   gTDCDC.run();
   gTOC.run();
