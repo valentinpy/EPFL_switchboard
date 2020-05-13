@@ -55,7 +55,7 @@ void TComm::run(){
 
 void TComm::QVmax(){
   unsigned int Vmax;
-  EEPROM.get(MEEPROM::ADR_VMAX, Vmax);
+  EEPROM.get(MEEPROM::ADR_VMAX_2B, Vmax);
   Serial.println(Vmax);
 }
 void TComm::SVmax(){
@@ -68,18 +68,18 @@ void TComm::SVmax(){
     else {
       Serial.println(arg);
       unsigned int val = atoi(arg); // TODO: to be changed to handle args which are not a number!
-      EEPROM.put(MEEPROM::ADR_VMAX,val);
+      EEPROM.put(MEEPROM::ADR_VMAX_2B,val);
     }
 }
 void TComm::QVset(){
   unsigned int val;
-  EEPROM.get(MEEPROM::ADR_VSET, val);
+  EEPROM.get(MEEPROM::ADR_VSET_2B, val);
   Serial.println(val);
 }
 void TComm::SVset(){
   unsigned int val = (unsigned int) sCmd.parseLongArg();
   Serial.println(val);
-  EEPROM.put(MEEPROM::ADR_VSET,val);
+  EEPROM.put(MEEPROM::ADR_VSET_2B,val);
 }
 void TComm::QVnow(){
 
