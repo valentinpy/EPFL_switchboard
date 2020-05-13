@@ -142,3 +142,10 @@ void mSerialCommand::clearBuffer() {
 char *mSerialCommand::next() {
   return strtok_r(NULL, delim, &last);
 }
+
+long mSerialCommand::parseLongArg() {
+  Serial.println("[WARN]: unsafe method: mSerialCommand::parseLongArg() - must be corrected");
+  char * arg;
+  arg = next();
+  return atol(arg);
+}

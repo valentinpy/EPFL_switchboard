@@ -71,11 +71,15 @@ void TComm::SVmax(){
       EEPROM.put(MEEPROM::ADR_VMAX,val);
     }
 }
-void TComm::SVset(){
-
-}
 void TComm::QVset(){
-
+  unsigned int val;
+  EEPROM.get(MEEPROM::ADR_VSET, val);
+  Serial.println(val);
+}
+void TComm::SVset(){
+  unsigned int val = (unsigned int) sCmd.parseLongArg();
+  Serial.println(val);
+  EEPROM.put(MEEPROM::ADR_VSET,val);
 }
 void TComm::QVnow(){
 

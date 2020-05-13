@@ -52,6 +52,7 @@ class mSerialCommand {
     void clearBuffer();   // Clears the input buffer.
     char *next();         // Returns pointer to next token found in command buffer (for getting arguments to commands).
 
+    long parseLongArg();
   private:
     // Command/handler dictionary
     struct mSerialCommandCallback {
