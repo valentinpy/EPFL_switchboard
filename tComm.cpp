@@ -3,6 +3,9 @@
 #include "include/mEEPROM.h"
 #include <EEPROM.h>
 #include "include/mSerialCommand.h"
+#include "userdef.h"
+
+
 
 mSerialCommand sCmd;     // The demo SerialCommand object
 
@@ -59,17 +62,10 @@ void TComm::QVmax(){
   Serial.println(Vmax);
 }
 void TComm::SVmax(){
-    char *arg;
-    arg = sCmd.next();
-    if (arg == NULL) {
-      Serial.println("Err");
-      return;
-    }
-    else {
-      Serial.println(arg);
-      unsigned int val = atoi(arg); // TODO: to be changed to handle args which are not a number!
-      EEPROM.put(MEEPROM::ADR_VMAX_2B,val);
-    }
+    unsigned int val = (unsigned int)sCmd.parseLongArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_VMAX_2B, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::QVset(){
   unsigned int val;
@@ -80,60 +76,91 @@ void TComm::SVset(){
   unsigned int val = (unsigned int) sCmd.parseLongArg();
   Serial.println(val);
   EEPROM.put(MEEPROM::ADR_VSET_2B,val);
+  Serial.println("Saved - requires reboot");
 }
 void TComm::QVnow(){
-
+    Serial.println("Not implemented yet");
 }
 void TComm::QName(){
-
+    Serial.println("Not implemented yet");
 }
 void TComm::SName(){
-
+    Serial.println("Not implemented yet");
 }
 void TComm::QMem(){
-
+    Serial.println("Not implemented yet");
 }
 void TComm::QVer(){
-
+    Serial.println(SOFTWARE_VERSION);
 }
 void TComm::Conf(){
-
+    Serial.println("Not implemented yet");
 }
 void TComm::SC0(){
-
+    double val = (double)sCmd.parseDoubleArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_C0_DBL, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::SC1(){
-
+    double val = (double)sCmd.parseDoubleArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_C1_DBL, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::SC2(){
-
+    double val = (double)sCmd.parseDoubleArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_C2_DBL, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::QC0(){
-
+    double val;
+    EEPROM.get(MEEPROM::ADR_C0_DBL, val);
+    Serial.println(val);
 }
 void TComm::QC1(){
-
+    double val;
+    EEPROM.get(MEEPROM::ADR_C1_DBL, val);
+    Serial.println(val);
 }
 void TComm::QC2(){
-
+    double val;
+    EEPROM.get(MEEPROM::ADR_C2_DBL, val);
+    Serial.println(val);
 }
 void TComm::SKp(){
-
+    double val = (double)sCmd.parseDoubleArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_KP_DBL, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::SKi(){
-
+    double val = (double)sCmd.parseDoubleArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_KI_DBL, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::SKd(){
-
+    double val = (double)sCmd.parseDoubleArg();
+    Serial.println(val);
+    EEPROM.put(MEEPROM::ADR_KD_DBL, val);
+    Serial.println("Saved - requires reboot");
 }
 void TComm::QKp(){
-
+    double val;
+    EEPROM.get(MEEPROM::ADR_KP_DBL, val);
+    Serial.println(val);
 }
 void TComm::QKi(){
-
+    double val;
+    EEPROM.get(MEEPROM::ADR_KI_DBL, val);
+    Serial.println(val);
 }
 void TComm::QKd(){
-
+    double val;
+    EEPROM.get(MEEPROM::ADR_KD_DBL, val);
+    Serial.println(val);
 }
 void TComm::SRelOn(){
 
@@ -175,15 +202,3 @@ void TComm::QHB(){
 void TComm::unrecognized(const char *command) {
   Serial.println("Err");
 }
-
-// void TComm::testCmd() {
-//   char *arg;
-//   arg = sCmd.next();    // Get the next argument from the SerialCommand object buffer
-//   if (arg != NULL) {    // As long as it existed, take it
-//     Serial.print("Tata ");
-//     Serial.println(arg);
-//   }
-//   else {
-//     Serial.println("Hello, whoever you are");
-//   }
-// }

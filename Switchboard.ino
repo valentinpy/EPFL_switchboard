@@ -34,8 +34,9 @@ along with shvps.  If not, see  <http://www.gnu.org/licenses/>
 #include "include/tHB.h"
 #include "include/tChannels.h"
 #include "include/tLed.h"
-
 #include "include/mSerialCommand.h"
+
+#include "userdef.h"
 
 MEEPROM gMEEPROM;
 TComm gTComm;
@@ -44,7 +45,6 @@ TOC gTOC;
 THB gTHB;
 TChannels gTChannels;
 TLed gTLed;
-
 
 
 //------------------------------------------------------

@@ -22,9 +22,9 @@ public:
   static const int ADR_LATCHMODE_1B=7;  // (1B) 0: button acts as a push button: HV is on while button is pressed. 1: button acts as a switch with a latching action (press to change state)
   // 8 free
   // 9 free
-  static const int ADR_C0_4B=10;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
-  static const int ADR_C1_4B=14;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
-  static const int ADR_C2_4B=18;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
+  static const int ADR_C0_DBL=10;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
+  static const int ADR_C1_DBL=14;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
+  static const int ADR_C2_DBL=18;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
   static const int ADR_CYCLE_2B=22;     // (2B) number of switching cycles to make in limited switching mode
   static const int ADR_F_DBL=24;         // (4B) double
   static const int ADR_KP_DBL=28;        // (4B) PID gain double

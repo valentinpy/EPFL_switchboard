@@ -149,3 +149,10 @@ long mSerialCommand::parseLongArg() {
   arg = next();
   return atol(arg);
 }
+
+long mSerialCommand::parseDoubleArg() {
+    Serial.println("[WARN]: unsafe method: mSerialCommand::parseDoubleArg() - must be corrected");
+    char* arg;
+    arg = next();
+    return atof(arg);
+}
