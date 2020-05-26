@@ -4,22 +4,34 @@
 class THB
 {
 public:
+	enum stateEnum { GND=0, HVA=1, HVB=2, HIGHZ = 3, DONTCARE };
 
-
-  THB() = default;
-  void setup();
-  void run();
-
-  void gnd();
-  void highZ();
-  void hv_A();
-  void hv_B();
+	THB() = default;
+	void setup();
+	void run();
+	void stateChange(stateEnum newState);
+	uint8_t getState();
 
 private:
-  const int HB_LINA_PIN=16; // H-Bridge: low side, side A
-  const int HB_LINB_PIN=5; // H-Bridge: low side, side B
-  const int HB_HINA_PIN=17; // H-Bridge: high side, side A
-  const int HB_HINB_PIN=6; // H-Bridge: high side, side B
+	enum stateMachineEnum { reset, standby, disconnect, reconnect };
+	stateMachineEnum stateMachine;
+
+	const uint8_t HB_LINA_PIN = 16; // H-Bridge: low side, side A
+	const uint8_t HB_LINB_PIN = 5; // H-Bridge: low side, side B
+	const uint8_t HB_HINA_PIN = 17; // H-Bridge: high side, side A
+	const uint8_t HB_HINB_PIN = 6; // H-Bridge: high side, side B
+	const uint32_t REL_DELAY_MS = 10;
+
+	struct newStatetruct {
+		bool stateChanged;
+		stateEnum state;
+	};
+	struct newStatetruct newStateS = { false, GND };
+
+	unsigned int timer;
+
+	void internalRun(bool stateChange, stateEnum newState);
+
 
 };
 #endif
