@@ -13,6 +13,6 @@ private:
   unsigned long lastRun;
 
   const int PERIOD_MS=500;
-  const int HV_LED_PIN=13;
+  const int HV_LED_PIN=11;
 };
 #endif
