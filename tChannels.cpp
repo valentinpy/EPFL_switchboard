@@ -18,6 +18,7 @@ void TChannels::allOn(){
     digitalWrite(Rel_pin[i], HIGH);
     Rel_status[i] = true;
   }
+  currentMode = AllOn;
 }
 
 void TChannels::allOff(){
@@ -25,6 +26,7 @@ void TChannels::allOff(){
     digitalWrite(Rel_pin[i], LOW);
     Rel_status[i] = false;
   }
+  currentMode = AllOff;
 }
 
 bool TChannels::set1(unsigned int channel, bool state){
@@ -42,10 +44,22 @@ bool TChannels::set1(unsigned int channel, bool state){
 
 void TChannels::autoMode(int aAutoRestart, bool* aListChannelsUsed){
   //TODO implement
+    currentMode = AutoMode;
 }
 
 void TChannels::getChannelsStatus(bool* retVal){
-  for(int i=0; i<NBREL; i++){
-    retVal[i] = Rel_status[i];
-  }
+    for(int i=0; i<NBREL; i++){
+        retVal[i] = Rel_status[i];
+    }
+}
+
+void TChannels::printChannelsStatus() {
+    Serial.print(currentMode);
+    Serial.print(";");
+    for (int i = 0; i < NBREL; i++) {
+        Serial.print(Rel_status[i]);
+        Serial.print(",");
+    }
+    Serial.println("");
+
 }

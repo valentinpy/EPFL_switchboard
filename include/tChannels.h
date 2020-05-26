@@ -13,9 +13,9 @@ public:
   bool set1(unsigned int channel, bool state);
   void autoMode(int aAutoRestart, bool* aListChannelsUsed);
   void getChannelsStatus(bool *retVal);
+  void printChannelsStatus();
 
 private:
-  const int NBREL=6;
   const int Rel0_PIN=23;
   const int Rel1_PIN=22;
   const int Rel2_PIN=21;
@@ -26,6 +26,11 @@ private:
   const int Rel_pin[6]={Rel0_PIN, Rel1_PIN, Rel2_PIN, Rel3_PIN, Rel4_PIN, Rel5_PIN}; // digital pin used to control relay 0-5
 
   int Rel_status[6]={};
+  const byte NBREL = 6;
+  
+  enum autoModeEnum {AllOff, AllOn, Manual, AutoMode};
+
+  autoModeEnum currentMode;
 
 };
 #endif
