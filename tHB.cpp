@@ -42,24 +42,13 @@ uint8_t THB::getState(){
 }
 
 void THB::internalRun(bool stateChange, stateEnum newState){
-	// Could be changed by an array of bool
-	bool lina;
-	bool linb;
-	bool hina;
-	bool hinb;
-
 	if (stateChange) {
-
+		//Serial.print("Changing state:");
+		//Serial.println(newState);
 		// depending of new case, determine whih relays should be ON or OFF
-		// todo: can be optimized by lookup table
+		// todo: can be optimized by lookup table (lina, linb, hina, hinb)
 		switch (newState)
 		{
-		case GND:
-			lina = 1;
-			linb = 1;
-			hina = 0;
-			hinb = 0;
-			break;
 		case HIGHZ:
 			lina = 0;
 			linb = 0;
@@ -78,10 +67,14 @@ void THB::internalRun(bool stateChange, stateEnum newState){
 			hina = 0;
 			hinb = 1;
 			break;
+		case GND:
 		default:
+			lina = 1;
+			linb = 1;
+			hina = 0;
+			hinb = 0;
 			break;
 		}
-
 		// next state: disconnect all that has to be disconnected
 		stateMachine = disconnect;
 

@@ -22,13 +22,19 @@ private:
 	const uint8_t HB_HINB_PIN = 6; // H-Bridge: high side, side B
 	const uint32_t REL_DELAY_MS = 10;
 
+	// Could be changed by an array of bool
+	bool lina;
+	bool linb;
+	bool hina;
+	bool hinb;
+
 	struct newStatetruct {
 		bool stateChanged;
 		stateEnum state;
 	};
 	struct newStatetruct newStateS = { false, GND };
 
-	unsigned int timer;
+	uint32_t timer;
 
 	void internalRun(bool stateChange, stateEnum newState);
 
