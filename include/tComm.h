@@ -38,12 +38,10 @@ private:
   static void SOCoff();
   static void SOCF();
   static void QOC();
-  static void SHBp();
-  static void SHBm();
-  static void SHB0();
+  static void SHB();
+  static void SHBF();
   static void QHB();
 
-  static void testCmd();
   static void unrecognized(const char *command);
 };
 #endif
