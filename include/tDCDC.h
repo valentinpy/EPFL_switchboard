@@ -10,9 +10,7 @@ public:
   void setup();
   void run();
 
-  void set_target_voltage(int voltage);
-  void get_measured_voltage();
-  void get_target_voltage();
+  void set_target_voltage(uint16_t  voltage);
 
   double get_C0();
   double get_C1();
@@ -33,6 +31,7 @@ public:
   uint16_t get_Vmax();
 
 
+
 private:
     double C0;
     double C1;
@@ -41,26 +40,38 @@ private:
     double Kp;
     double Ki;
     double Kd;
-    double Ki_save;
-    double Kd_save;
+    /*double Ki_save;
+    double Kd_save;*/
 
     double input, output, setpoint; //3 parameters for PID regulator
-    double get_HV_voltage(uint8_t nAvg);
-
-    void initPWM();
-    void setPWMDuty(uint16_t duty);
-
-    uint32_t lastRun;
-    const uint32_t PERIOD_MS = 10;
-    
     PID HVPS_PID;
 
+    uint32_t timer;
+    const uint32_t PERIOD_MS = 1;
+
+
+    
     uint16_t last_Vnow;
     uint16_t Vmax;
     uint16_t Vset;
 
-//private:
+    void initPWM();
+    void setPWMDuty(uint16_t duty);
+    double get_HV_voltage(uint8_t nAvg);
+    double get_HV_voltage_fast(float alpha);
 
-    
+
+    //------------------------------------------------------
+    // High voltage feedback filtering stuff
+    //------------------------------------------------------
+    // According to: https://en.wikipedia.org/wiki/Exponential_smoothing
+    // Let T be sampling frequency
+    // Let tau be expected time constant of filter
+    // Assuming tau >> T
+    // alpha = T/tau
+    // T = 1ms, alpha = 0.1 => tau = 10ms
+    uint32_t timerHVmeas; //timer for high voltage feedback filtering
+    const uint32_t PERIOD_HVMEAS_MS = 1; //sampling for high voltage feedback filtering
+    const float HVMEAS_ALPHA = 0.1; //alpha constant for high voltage feedback filtering
 };
 #endif

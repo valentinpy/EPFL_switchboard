@@ -3,63 +3,90 @@
 #include "include/hPID_v1.h"
 #include "include/mEEPROM.h"
 #include "EEPROM.h"
+#include "include/hDebug.h"
 
 //#define DCDC_CURRENT_FB_PIN 0 // Voltage representing current on the input of DCDC (=> analog input)
 //#define KILL_STATE_PIN 0 // Voltage for "kill switch" state. (analog input, due to voltage divider)
 
 static const uint8_t HV_FB_PIN = 18; // Voltage representing high voltage output, voltage divider ratio: 1000
 static const uint8_t DCDC_CTRL_PIN = 13; // Digital output pin for driving transistor of buck converter before HV DCDC
-
+extern HDBG gHDBG;
 
 TDCDC::TDCDC() : HVPS_PID(&input, &output, &setpoint, 0.02, 0.0, 0.0, DIRECT) {}
 
 void TDCDC::setup(){
+    // setup HW pins
 	pinMode(DCDC_CTRL_PIN, OUTPUT);
 	pinMode(HV_FB_PIN, INPUT);
 
-    lastRun = millis();
+    //-------------------------------------
+    // Read important data from EEPROM
+    //-------------------------------------
 
+    // Calibration factors
     EEPROM.get(MEEPROM::ADR_C0_DBL, C0);
     EEPROM.get(MEEPROM::ADR_C1_DBL, C1);
     EEPROM.get(MEEPROM::ADR_C2_DBL, C2);
 
+    // PID coeffircients
     EEPROM.get(MEEPROM::ADR_KP_DBL, Kp);
     EEPROM.get(MEEPROM::ADR_KI_DBL, Ki);
     EEPROM.get(MEEPROM::ADR_KD_DBL, Kd);
 
+    // Max voltage
     EEPROM.get(MEEPROM::ADR_VMAX_2B, Vmax);
   
+    //intial target voltage
+
     HVPS_PID.SetOutputLimits(0, 1023); //set the PID output to a 10bit value
     HVPS_PID.SetSampleTime(5); //PID output is updated every 5ms
     HVPS_PID.SetTunings(Kp, Ki, Kd); //set the regulators parameters with data read from EEPROM
     HVPS_PID.SetMode(AUTOMATIC);
+    HVPS_PID.SetControllerDirection(REVERSE);
 
+    //setup PWM
+    //TODO: add a general PWM Class, with:
+    // - setup function(pin, frequency, initDutyCycle=0)
+    // - updateDutyCycle(newDutyCycle)
+    // - updateFrequency(neFFrequency)
+    // - getDutyCycle()
     initPWM();
 
+    setpoint = 0;
+
+    //initialize timer
+    timer = millis();
 }
 
 void TDCDC::run(){
-    if (millis() - lastRun > PERIOD_MS) {
-        lastRun = millis();
-        //Serial.println(get_HV_voltage(20));
-        setPWMDuty(100);
+    
+    // Read and filter and convert voltage
+    // This should run at a defined frequency to keep expected low pass frequency
+    // See tDCDC.h
+    if (millis() - timerHVmeas >= PERIOD_HVMEAS_MS) {
+        timerHVmeas = millis();
+        last_Vnow = get_HV_voltage_fast(HVMEAS_ALPHA);
     }
+
+    input = last_Vnow;
+    if (HVPS_PID.Compute()) {
+        setPWMDuty(output);
+    }
+
+
+    //if (millis() - timer >= PERIOD_MS) {
+    //    timer = millis();
+    //    gHDBG.toggle_1();
+    //    //setPWMDuty(830);
+    //}
 }
 
-void TDCDC::set_target_voltage(int voltage){
+void TDCDC::set_target_voltage(uint16_t voltage){
+    Vset = voltage;
     ////TODO add regulation
     //setPWMDuty(voltage);
     //Serial.print("DBG: new duty cycle:");
     //Serial.println(voltage);
-}
-
-
-void TDCDC::get_measured_voltage(){
-
-}
-
-void TDCDC::get_target_voltage(){
-
 }
 
 double TDCDC::get_HV_voltage(uint8_t nAvg) {
@@ -68,10 +95,28 @@ double TDCDC::get_HV_voltage(uint8_t nAvg) {
         input_V = input_V + analogRead(HV_FB_PIN);
     }
     input_V = input_V / nAvg; //average value
-    // TODO VPY: add calibration factor!
+    
     input_V = input_V * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
     input_V = C2 * 1E-6 * pow(input_V, 2) + C1 * input_V + C0;
     return input_V;
+}
+
+double TDCDC::get_HV_voltage_fast(float alpha) {
+    float x;
+    static float y=0;
+    float return_V;
+
+    // Exponential smoothing:
+    // https://en.wikipedia.org/wiki/Exponential_smoothing
+
+    x = (double)analogRead(HV_FB_PIN);
+    y = alpha * x + (1.0 - alpha) * y;
+    
+
+    // calibration factor
+    return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
+    return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
+    return return_V;
 }
 
 
@@ -116,7 +161,7 @@ double TDCDC::get_Kd() {
     return Kd;
 }
 uint16_t TDCDC::get_last_Vnow() {
-    return lastRun;
+    return last_Vnow;
 }
 uint16_t TDCDC::get_Vset() {
     return Vset;
@@ -142,10 +187,13 @@ void TDCDC::set_C2(double C2) {
 }
 void TDCDC::set_Kp(double Kp) {
     this->Kp = Kp;
+    //TODO update PID instance
 }
 void TDCDC::set_Ki(double Ki) {
     this->Ki = Ki;
+    //TODO update PID instance
 }
 void TDCDC::set_Kd(double Kd) {
     this->Kd = Kd;
+    //TODO update PID instance
 }
