@@ -141,9 +141,9 @@ void TComm::Conf(){
     EEPROM.put(MEEPROM::ADR_C1_DBL, (double)1.0);
     EEPROM.put(MEEPROM::ADR_C2_DBL, (double)0.0);
 
-    EEPROM.put(MEEPROM::ADR_KP_DBL, (double)1.0);
-    EEPROM.put(MEEPROM::ADR_KI_DBL, (double)0.0);
-    EEPROM.put(MEEPROM::ADR_KD_DBL, (double)0.0);
+    EEPROM.put(MEEPROM::ADR_KP_DBL, (double)0.23);
+    EEPROM.put(MEEPROM::ADR_KI_DBL, (double)2.2);
+    EEPROM.put(MEEPROM::ADR_KD_DBL, (double)0.004);
 
     MEEPROM::update_string(MEEPROM::ADR_NAME_STR, 21, "NOT DEFINED");
 
