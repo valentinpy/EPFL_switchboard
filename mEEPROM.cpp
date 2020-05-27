@@ -21,7 +21,7 @@ void MEEPROM::read_string(word aAddr, byte an, char * c) //reads a string from E
   }
 }
 
-void MEEPROM::update_string(word aAddr, byte an, char * c) //writes string c at address addr, but not more than n bytes
+void MEEPROM::update_string(word aAddr, byte an, const char * c) //writes string c at address addr, but not more than n bytes
 {
   for (byte i=0; i<an; i++) {
     EEPROM.update(aAddr+i,c[i]);

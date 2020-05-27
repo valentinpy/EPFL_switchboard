@@ -8,7 +8,7 @@ public:
   void setup();
 
   static void read_string(word aAddr, byte an, char * c); //reads a string from EEPROM at address addr, and with a length of n or less (n includes the termination character \0) and store it in C
-  static void update_string(word aAddr, byte an, char * c); //writes string c at address addr, but not more than n bytes
+  static void update_string(word aAddr, byte an, const char * c); //writes string c at address addr, but not more than n bytes
 
   //------------------------------------------------------
   //EEPROM map
