@@ -53,7 +53,7 @@ class mSerialCommand {
     char *next();         // Returns pointer to next token found in command buffer (for getting arguments to commands).
 
     long parseLongArg();
-	long parseDoubleArg();
+	double parseDoubleArg();
   private:
     // Command/handler dictionary
     struct mSerialCommandCallback {
