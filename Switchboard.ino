@@ -35,6 +35,7 @@ along with shvps.  If not, see  <http://www.gnu.org/licenses/>
 #include "include/tChannels.h"
 #include "include/tLed.h"
 #include "include/mSerialCommand.h"
+#include "include/hDebug.h"
 
 #include "userdef.h"
 
@@ -45,29 +46,32 @@ TOC gTOC;
 THB gTHB;
 TChannels gTChannels;
 TLed gTLed;
+HDBG gHDBG;
 
 
 //------------------------------------------------------
 // Setup
 //------------------------------------------------------
 void setup() {
-  gMEEPROM.setup();
-  gTDCDC.setup();
-  gTOC.setup();
-  gTHB.setup();
-  gTChannels.setup();
-  gTLed.setup();
-  gTComm.setup();
+	gMEEPROM.setup();
+	gTDCDC.setup();
+	gTOC.setup();
+	gTHB.setup();
+	gTChannels.setup();
+	gTLed.setup();
+	gTComm.setup();
+	gHDBG.setup();
 }
 
 //------------------------------------------------------
 // Big old loop
 //------------------------------------------------------
 void loop() {
-  gTComm.run();
-  gTDCDC.run();
-  gTOC.run();
-  gTHB.run();
-  gTChannels.run();
-  gTLed.run();
+	gHDBG.toggle_0();
+	gTComm.run();
+	gTDCDC.run();
+	gTOC.run();
+	gTHB.run();
+	gTChannels.run();
+	gTLed.run();
 }
