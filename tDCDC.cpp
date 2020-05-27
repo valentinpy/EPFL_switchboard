@@ -59,7 +59,6 @@ void TDCDC::setup(){
 }
 
 void TDCDC::run(){
-    
     // Read and filter and convert voltage
     // This should run at a defined frequency to keep expected low pass frequency
     // See tDCDC.h
@@ -68,25 +67,27 @@ void TDCDC::run(){
         last_Vnow = get_HV_voltage_fast(HVMEAS_ALPHA);
     }
 
-    input = last_Vnow;
+    // Run PID: frequency is internally limited
+    // HVPS_PID.Compute() returns true if a new value is computed
+    // For PID: values are passed by pointers (TODO: change the lib?) for following variables:
+    // - setpoint => target voltage
+    // - input => measured voltage
+    // - output => result of PID computation => PWM duty cycle
+
+    input = last_Vnow; // Tell PID what was the measured voltage
     if (HVPS_PID.Compute()) {
-        setPWMDuty(output);
+        setPWMDuty(output); // Apply output if computed
+        //Serial.print("in: ");
+        //Serial.print(input);
+        //Serial.print("\tsetpoint: ");
+        //Serial.print(setpoint);
+        //Serial.print("\tPWM out: ");
+        //Serial.println(output);
     }
-
-
-    //if (millis() - timer >= PERIOD_MS) {
-    //    timer = millis();
-    //    gHDBG.toggle_1();
-    //    //setPWMDuty(830);
-    //}
 }
 
 void TDCDC::set_target_voltage(uint16_t voltage){
-    Vset = voltage;
-    ////TODO add regulation
-    //setPWMDuty(voltage);
-    //Serial.print("DBG: new duty cycle:");
-    //Serial.println(voltage);
+    setpoint = voltage;
 }
 
 double TDCDC::get_HV_voltage(uint8_t nAvg) {
@@ -152,7 +153,7 @@ double TDCDC::get_C2() {
     return C2;
 }
 double TDCDC::get_Kp() {
-    return Kd;
+    return Kp;
 }
 double TDCDC::get_Ki() {
     return Ki;
@@ -164,7 +165,7 @@ uint16_t TDCDC::get_last_Vnow() {
     return last_Vnow;
 }
 uint16_t TDCDC::get_Vset() {
-    return Vset;
+    return setpoint;
 }
 uint16_t TDCDC::get_Vmax() {
     return Vmax;
@@ -187,13 +188,13 @@ void TDCDC::set_C2(double C2) {
 }
 void TDCDC::set_Kp(double Kp) {
     this->Kp = Kp;
-    //TODO update PID instance
+    HVPS_PID.SetTunings(Kp, Ki, Kd);
 }
 void TDCDC::set_Ki(double Ki) {
     this->Ki = Ki;
-    //TODO update PID instance
+    HVPS_PID.SetTunings(Kp, Ki, Kd);
 }
 void TDCDC::set_Kd(double Kd) {
     this->Kd = Kd;
-    //TODO update PID instance
+    HVPS_PID.SetTunings(Kp, Ki, Kd);
 }

@@ -48,12 +48,9 @@ private:
 
     uint32_t timer;
     const uint32_t PERIOD_MS = 1;
-
-
     
     uint16_t last_Vnow;
     uint16_t Vmax;
-    uint16_t Vset;
 
     void initPWM();
     void setPWMDuty(uint16_t duty);
