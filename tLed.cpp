@@ -1,15 +1,25 @@
 #include "Arduino.h"
 #include "include/tLed.h"
+#include "include/tDCDC.h"
 
-void TLed::setup(){
-  pinMode(LED_BUILTIN, OUTPUT);
-  lastRun = millis();
+// external instances of tasks
+extern TDCDC gTDCDC;
+
+
+void TLed::setup() {
+	pinMode(LED_BUILTIN, OUTPUT);
+	lastRun = millis();
 }
 
-void TLed::run(){
-  if (millis()-lastRun > PERIOD_MS){
-    state = ! state;
-    lastRun = millis();
-    digitalWrite(HV_LED_PIN, state);
-  }
+void TLed::run() {
+	if (millis() - lastRun > PERIOD_MS) {
+		if (gTDCDC.get_last_Vnow() > 10) {
+			ledState = !ledState;
+		}
+		else {
+			ledState = LOW;
+		}
+		lastRun = millis();
+		digitalWrite(HV_LED_PIN, ledState);
+	}
 }
