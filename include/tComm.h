@@ -6,6 +6,7 @@ public:
   TComm() = default;
   void setup();
   void run();
+  
 
 private:
   static void QVmax();
@@ -41,7 +42,16 @@ private:
   static void SHB();
   static void SHBF();
   static void QHB();
+  static void Reboot();
+  static void Debug();
 
   static void unrecognized(const char *command);
+
+  static void debugPrint();
+
+  static bool debugEnabled;
+
+  static uint32_t timer;
+  static const uint32_t DELAY_MS = 100;
 };
 #endif

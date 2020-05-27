@@ -2,8 +2,9 @@
 #include "include/tComm.h"
 #include "include/mEEPROM.h"
 #include <EEPROM.h>
-#include "include/mSerialCommand.h"
+#include <avr/wdt.h>
 #include "userdef.h"
+
 
 
 #include "include/tComm.h"
@@ -24,7 +25,8 @@ extern THB gTHB;
 extern TChannels gTChannels;
 extern TLed gTLed;
 
-
+bool TComm::debugEnabled = false;
+uint32_t TComm::timer = 0;
 
 void TComm::setup(){
   Serial.begin(115200);
@@ -63,19 +65,34 @@ void TComm::setup(){
   sCmd.addCommand("SHB", this->SHB);
   sCmd.addCommand("SHBF", this->SHBF);
   sCmd.addCommand("QHB", this->QHB);
+  sCmd.addCommand("Reboot", this->Reboot);
+  sCmd.addCommand("Debug", this->Debug);
   sCmd.setDefaultHandler(this->unrecognized); // Handler for command that isn't matched
 
+  TComm::debugEnabled = false;
+  TComm::timer = millis();
 }
 
 void TComm::run(){
   sCmd.readSerial();     // We don't do much, just process serial commands
+  if ((millis() - TComm::timer) > TComm::DELAY_MS) {
+      TComm::timer = millis();
+      if (TComm::debugEnabled) {
+          debugPrint();
+      }
+  }
   return;
 }
 
+void TComm::debugPrint() {
+    Serial.print(gTDCDC.get_last_Vnow());
+    Serial.println("");
+}
+
 void TComm::QVmax(){
-  unsigned int Vmax;
-  EEPROM.get(MEEPROM::ADR_VMAX_2B, Vmax);
-  Serial.println(Vmax);
+  unsigned int val;
+  val = gTDCDC.get_Vmax();
+  Serial.println(val);
 }
 void TComm::SVmax(){
     unsigned int val = (unsigned int)sCmd.parseLongArg();
@@ -85,17 +102,20 @@ void TComm::SVmax(){
 }
 void TComm::QVset(){
   unsigned int val;
-  EEPROM.get(MEEPROM::ADR_VSET_2B, val);
+  val = gTDCDC.get_Vset();
   Serial.println(val);
 }
 void TComm::SVset(){
   unsigned int val = (unsigned int) sCmd.parseLongArg();
   Serial.println(val);
-  EEPROM.put(MEEPROM::ADR_VSET_2B,val);
-  Serial.println("Saved - requires reboot");
+  gTDCDC.set_target_voltage(val);
+  //EEPROM.put(MEEPROM::ADR_VSET_2B,val);
+  //Serial.println("Saved - requires reboot");
+  
 }
 void TComm::QVnow(){
-    Serial.println("Not implemented yet");
+    //Serial.println("Not implemented yet");
+    Serial.println(gTDCDC.get_last_Vnow());
 }
 void TComm::QName(){
     char buff[21];
@@ -115,7 +135,23 @@ void TComm::QVer(){
     Serial.println(SOFTWARE_VERSION);
 }
 void TComm::Conf(){
-    Serial.println("Not implemented yet");
+    Serial.println("Not fully implemented yet");
+
+    EEPROM.put(MEEPROM::ADR_C0_DBL, (double)0.0);
+    EEPROM.put(MEEPROM::ADR_C1_DBL, (double)1.0);
+    EEPROM.put(MEEPROM::ADR_C2_DBL, (double)0.0);
+
+    EEPROM.put(MEEPROM::ADR_KP_DBL, (double)1.0);
+    EEPROM.put(MEEPROM::ADR_KI_DBL, (double)0.0);
+    EEPROM.put(MEEPROM::ADR_KD_DBL, (double)0.0);
+
+    MEEPROM::update_string(MEEPROM::ADR_NAME_STR, 21, "NOT DEFINED");
+
+    EEPROM.put(MEEPROM::ADR_VMAX_2B, 5000);
+    EEPROM.put(MEEPROM::ADR_VSET_2B, 0);
+    Serial.println("!!REBOOT REQUIRED!!");
+
+
 }
 void TComm::SC0(){
     double val = (double)sCmd.parseDoubleArg();
@@ -138,7 +174,6 @@ void TComm::SC2(){
 void TComm::QC0(){
     double val = gTDCDC.get_C0();
     Serial.println(val);
-
 }
 void TComm::QC1(){
     double val = gTDCDC.get_C1();
@@ -168,17 +203,20 @@ void TComm::SKd(){
 }
 void TComm::QKp(){
     double val;
-    EEPROM.get(MEEPROM::ADR_KP_DBL, val);
+    //EEPROM.get(MEEPROM::ADR_KP_DBL, val);
+    val = gTDCDC.get_Kp();
     Serial.println(val);
 }
 void TComm::QKi(){
     double val;
-    EEPROM.get(MEEPROM::ADR_KI_DBL, val);
+    //EEPROM.get(MEEPROM::ADR_KI_DBL, val);
+    val = gTDCDC.get_Ki();
     Serial.println(val);
 }
 void TComm::QKd(){
     double val;
-    EEPROM.get(MEEPROM::ADR_KD_DBL, val);
+    //EEPROM.get(MEEPROM::ADR_KD_DBL, val);
+    val = gTDCDC.get_Kd();
     Serial.println(val);
 }
 void TComm::SRelOn(){
@@ -217,6 +255,18 @@ void TComm::SHBF(){
 }
 void TComm::QHB(){
     Serial.println(gTHB.getState());
+}
+
+void TComm::Reboot() {
+    Serial.println("[INFO]: Rebooting due to user request");
+    wdt_enable(WDTO_15MS);
+    while (1) {}
+}
+
+void TComm::Debug() {
+    uint8_t val = (uint8_t)sCmd.parseLongArg();
+    Serial.println(val);
+    TComm::debugEnabled = (bool)val;
 }
 
 // This gets set as the default handler, and gets called when no other command matches.
