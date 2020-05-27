@@ -10,9 +10,9 @@ public:
 
 private:
   bool ledState;
-  unsigned long lastRun;
+  const uint8_t HV_LED_PIN = 11;
 
-  const int PERIOD_MS=100;
-  const int HV_LED_PIN=11;
+  uint32_t lastRun;
+  const uint32_t PERIOD_MS=100;
 };
 #endif
