@@ -43,7 +43,7 @@ private:
   static void QHB();
   static void Reboot();
   static void Debug();
-
+  static void vpy(); // vpy testing command
   static void unrecognized(const char *command);
 
   static void debugPrint();

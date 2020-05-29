@@ -90,7 +90,7 @@ void TDCDC::set_target_voltage(uint16_t voltage){
     setpoint = voltage;
 }
 
-double TDCDC::get_HV_voltage(uint8_t nAvg) {
+double TDCDC::get_HV_voltage(uint8_t nAvg) { //deprecated
     float input_V = 0;
     for (uint8_t i = 0; i < nAvg; i++) {
         input_V = input_V + analogRead(HV_FB_PIN);
@@ -101,6 +101,37 @@ double TDCDC::get_HV_voltage(uint8_t nAvg) {
     input_V = C2 * 1E-6 * pow(input_V, 2) + C1 * input_V + C0;
     return input_V;
 }
+
+bool TDCDC::decrease_temporary_voltage(uint8_t percentage) {
+    if (decrease_percent != -1) {
+        // can only be applied once, please restore voltage first
+        return false;
+    }
+    else {
+        uint32_t new_voltage = (((uint32_t)get_Vset()) * percentage) / 100;
+        Serial.print("Decrease: new voltage: ");
+        Serial.println(new_voltage);
+        set_target_voltage(new_voltage);
+        decrease_percent = percentage;
+        return true;
+    } 
+}
+
+bool TDCDC::restore_voltage() {
+    if (decrease_percent == -1) {
+        // can only be applied once and after voltage has been decreased, please decrease voltage first
+        return false;
+    }
+    else {
+        uint32_t new_voltage = (((uint32_t)get_Vset()) * 100) / decrease_percent;
+        Serial.print("Increase: new voltage: ");
+        Serial.println(new_voltage);
+        set_target_voltage(new_voltage);
+        decrease_percent = -1;
+        return true;
+    }
+}
+
 
 double TDCDC::get_HV_voltage_fast(float alpha) {
     float x;

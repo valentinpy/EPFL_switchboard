@@ -66,6 +66,7 @@ void TComm::setup(){
   sCmd.addCommand("QHB", this->QHB);
   sCmd.addCommand("Reboot", this->Reboot);
   sCmd.addCommand("Debug", this->Debug);
+  sCmd.addCommand("vpy", this->vpy); // vpy testing command
   sCmd.setDefaultHandler(this->unrecognized); // Handler for command that isn't matched
 
   TComm::debugEnabled = false;
@@ -305,6 +306,24 @@ void TComm::Debug() {
     Serial.println(val);
     TComm::debugEnabled = (bool)val;
 }
+
+void TComm::vpy() {
+    uint8_t val = (uint8_t)sCmd.parseLongArg();
+    Serial.println(val);
+    
+    switch (val) {
+    case 0:
+        gTDCDC.decrease_temporary_voltage(80);
+        break;
+    case 1:
+        gTDCDC.restore_voltage();
+        break;
+    default:
+        Serial.println("Err VPY");
+        break;
+    }
+}
+
 
 // This gets set as the default handler, and gets called when no other command matches.
 void TComm::unrecognized(const char *command) {
