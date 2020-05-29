@@ -35,8 +35,7 @@ private:
   static void SRelOff();
   static void SRelAuto();
   static void QRelState();
-  static void SOCon();
-  static void SOCoff();
+  static void SOC();
   static void SOCF();
   static void QOC();
   static void SHB();

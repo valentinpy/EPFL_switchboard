@@ -58,8 +58,7 @@ void TComm::setup(){
   sCmd.addCommand("SRelOff", this->SRelOff);
   sCmd.addCommand("SRelAuto", this->SRelAuto);
   sCmd.addCommand("QRelState", this->QRelState);
-  sCmd.addCommand("SOCon", this->SOCon);
-  sCmd.addCommand("SOCoff", this->SOCoff);
+  sCmd.addCommand("SOC", this->SOC);
   sCmd.addCommand("SOCF", this->SOCF);
   sCmd.addCommand("QOC", this->QOC);
   sCmd.addCommand("SHB", this->SHB);
@@ -150,8 +149,6 @@ void TComm::Conf(){
     EEPROM.put(MEEPROM::ADR_VMAX_2B, 5000);
     EEPROM.put(MEEPROM::ADR_VSET_2B, 0);
     Serial.println("!!REBOOT REQUIRED!!");
-
-
 }
 void TComm::SC0(){
     double val = (double)sCmd.parseDoubleArg();
@@ -234,26 +231,66 @@ void TComm::SRelAuto(){
 void TComm::QRelState(){
     gTChannels.printChannelsStatus();
 }
-void TComm::SOCon(){
+void TComm::SOC(){
+    uint8_t val = (uint8_t)sCmd.parseLongArg();
+    if ((val == 0) || (val == 1) || (val == 3)) {
+        Serial.println(val);
+        gTOC.setOperationMode(TOC::OPMANUAL);
+        gTOC.stateChange(val);
+    }
+    else {
+        Serial.println("Err: param");
+    }    
+}
 
+void TComm::SOCF() {
+    double val = (double)sCmd.parseDoubleArg();
+    if (val <= gTOC.getMaxFrequencyHz()) {
+        Serial.println(val);
+        gTOC.setOperationMode(TOC::OPFREQUENCY, val);
+    }
+    else {
+        Serial.println("Err: param");
+    }
+    //gTOC.stateChange(0);
+    //Serial.println("Not implemented yet");
 }
-void TComm::SOCoff(){
-}
-void TComm::SOCF(){
 
-}
 void TComm::QOC(){
-
+    Serial.print(gTOC.getOperationMode());
+    Serial.print(",");
+    Serial.println(gTOC.getState());
 }
 void TComm::SHB(){
     uint8_t val = (uint8_t)sCmd.parseLongArg();
-    Serial.println(val);
-    gTHB.stateChange((THB::stateEnum)val);
+    if ((val >= 0) && (val <= 3)) {
+        Serial.println(val);
+        gTHB.setOperationMode(THB::OPMANUAL);
+        gTHB.stateChange(val);
+    }
+    else {
+        Serial.println("Err: param");
+    }
 }
 void TComm::SHBF(){
-    Serial.println("Not implemented yet");
+    gTHB.setOperationMode(THB::OPFREQUENCY);
+    //gTHB.stateChange(0);
+
+    double val = (double)sCmd.parseDoubleArg();
+    if (val <= gTHB.getMaxFrequencyHz()) {
+        Serial.println(val);
+        gTHB.setOperationMode(THB::OPFREQUENCY, val);
+    }
+    else {
+        Serial.println("Err: param");
+    }
+    //gTOC.stateChange(0);
+    //Serial.println("Not implemented yet");
+
 }
 void TComm::QHB(){
+    Serial.print(gTHB.getOperationMode());
+    Serial.print(",");
     Serial.println(gTHB.getState());
 }
 

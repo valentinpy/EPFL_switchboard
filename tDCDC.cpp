@@ -110,7 +110,7 @@ double TDCDC::get_HV_voltage_fast(float alpha) {
     // Exponential smoothing:
     // https://en.wikipedia.org/wiki/Exponential_smoothing
 
-    x = (double)analogRead(HV_FB_PIN);
+    x = (double)analogRead(HV_FB_PIN); //TODO: can we do that reading non blocking: we lose at least 100uS!
     y = alpha * x + (1.0 - alpha) * y;
     
 

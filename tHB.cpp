@@ -1,8 +1,7 @@
 #include "Arduino.h"
 #include "include/tHB.h"
 
-enum stateEnum { GND, HIGHZ, HVA, HBB };
-enum stateMachineEnum {reset, standby, newState, disconnect, reconnect};
+// TODO: handle PWM / high speed
 
 void THB::setup(){
 	// 4 control pins as output
@@ -14,31 +13,74 @@ void THB::setup(){
 	// At start, H-Bridge shorts output to ground as a protection
 	digitalWrite(HB_HINA_PIN, LOW);
 	digitalWrite(HB_HINB_PIN, LOW);
-	delay(5); // 5ms delay for switching off first
+	delay(THB::REL_DELAY_MS); // delay for short circuit protection
 	digitalWrite(HB_LINA_PIN, HIGH);
 	digitalWrite(HB_LINB_PIN, HIGH);
 
 	// stay in standby mode until there is a change requested by user
 	stateMachine = standby;
+
+	//Operation mode
+	//TODO: could be stored in EEPROM, as well as frequency
+	operationMode = OPMANUAL;
 }
 
 void THB::run() {
-	if (newStateS.stateChanged) {
-		newStateS.stateChanged = false; // reset flag
-		internalRun(true, newStateS.state);
+	// If operation mode is manual, change state only if gTcomm told us to do it
+	if (operationMode == OPMANUAL) {
+		if (newStateS.stateChanged) {
+			newStateS.stateChanged = false; // reset flag
+			internalRun(true, newStateS.state);
+		}
+		else {
+			internalRun(false, DONTCARE);
+		}
 	}
+	// Else, we handle that according to frequency
+	// TODO: This is "soft PWM", should use hardware counter compare
 	else {
-		internalRun(false, DONTCARE);
+	//Serial.println(period_us);
+		if (micros() - timer_freq_us > period_us) {
+			timer_freq_us = micros();
+			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
+			internalRun(true, (frequency_toggler+1)); //1,2,1,2,...
+		}
+		else {
+			internalRun(false, DONTCARE);
+		}
 	}
 }
 
-void THB::stateChange(stateEnum newState) {
+void THB::stateChange(uint8_t newState) {
 	newStateS.stateChanged = true;
 	newStateS.state = newState;
 }
 
 uint8_t THB::getState(){
 	return newStateS.state;
+}
+
+uint8_t THB::getOperationMode() {
+	return operationMode;
+}
+
+uint16_t THB::getMaxFrequencyHz() {
+	return MAXFREQUENCY_HZ;
+}
+
+void THB::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
+	operationMode = newOpMode; // save new operation mode
+	if (newFrequency != 0) {
+		period_us = (uint32_t)(1000000 / (2 * newFrequency)); // if we are in frequency mode, save frequency (not used in manual mode)
+		timer_freq_us = micros();// start timer //TODO: check for overflow after about 70 minutes
+	}
+	else {
+		// if invalid frequency, switch back to manual mode
+		operationMode = OPMANUAL;
+		newStateS.state = GND;
+		newStateS.stateChanged = true;
+	}
+	frequency_toggler = 0; // init "toggler", variable used to switch from low to high,... in frequency mode
 }
 
 void THB::internalRun(bool stateChange, stateEnum newState){
@@ -77,7 +119,6 @@ void THB::internalRun(bool stateChange, stateEnum newState){
 		}
 		// next state: disconnect all that has to be disconnected
 		stateMachine = disconnect;
-
 	}
 
 	switch (stateMachine) {
@@ -135,7 +176,3 @@ void THB::internalRun(bool stateChange, stateEnum newState){
 		break;
 	}
 }
-
-
-
-// TODO: handle PWM / high speed
