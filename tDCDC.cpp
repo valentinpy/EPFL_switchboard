@@ -18,6 +18,7 @@ void TDCDC::setup(){
     // setup HW pins
 	pinMode(DCDC_CTRL_PIN, OUTPUT);
 	pinMode(HV_FB_PIN, INPUT);
+    pinMode(KILL_SWITCH_PIN, INPUT);
 
     //-------------------------------------
     // Read important data from EEPROM
@@ -53,6 +54,7 @@ void TDCDC::setup(){
     initPWM();
 
     setpoint = 0;
+    setpoint_save = 0;
 
     //initialize timer
     timer = millis();
@@ -67,6 +69,22 @@ void TDCDC::run(){
         last_Vnow = get_HV_voltage_fast(HVMEAS_ALPHA);
     }
 
+    if (millis() - timer_enable_switch >= KILL_SWITCH_PERIOD_MS) {  
+        timer_enable_switch = millis();
+        //enable_switch = analogRead(KILL_SWITCH_PIN) > 200 ? 1 : 0;
+        enable_switch = get_filtered_enable_switch(0.02) > 200 ? 1 : 0;
+        
+        // if disabled, PID target => 0
+        if (!enable_switch) {
+            //setpoint_save = setpoint;
+            setpoint = 0.0;
+        }
+        else {
+            setpoint = setpoint_save;
+        }
+    }
+
+    
     // Run PID: frequency is internally limited
     // HVPS_PID.Compute() returns true if a new value is computed
     // For PID: values are passed by pointers (TODO: change the lib?) for following variables:
@@ -87,7 +105,8 @@ void TDCDC::run(){
 }
 
 void TDCDC::set_target_voltage(uint16_t voltage){
-    setpoint = voltage;
+    //setpoint = voltage;
+    setpoint_save = voltage;
 }
 
 double TDCDC::get_HV_voltage(uint8_t nAvg) { //deprecated
@@ -103,31 +122,31 @@ double TDCDC::get_HV_voltage(uint8_t nAvg) { //deprecated
 }
 
 bool TDCDC::decrease_temporary_voltage(uint8_t percentage) {
-    if (decrease_percent != -1) {
+    if (old_voltage != -1) {
         // can only be applied once, please restore voltage first
         return false;
     }
     else {
         uint32_t new_voltage = (((uint32_t)get_Vset()) * percentage) / 100;
-        Serial.print("Decrease: new voltage: ");
-        Serial.println(new_voltage);
+        old_voltage = get_Vset();
+        //Serial.print("[INFO]: Decrease: new voltage: ");
+        //Serial.println(new_voltage);
         set_target_voltage(new_voltage);
-        decrease_percent = percentage;
         return true;
     } 
 }
 
 bool TDCDC::restore_voltage() {
-    if (decrease_percent == -1) {
+    if (old_voltage == -1) {
         // can only be applied once and after voltage has been decreased, please decrease voltage first
         return false;
     }
     else {
-        uint32_t new_voltage = (((uint32_t)get_Vset()) * 100) / decrease_percent;
-        Serial.print("Increase: new voltage: ");
-        Serial.println(new_voltage);
+        uint32_t new_voltage = old_voltage;
+        //Serial.print("[INFO]: Increase: new voltage: ");
+        //Serial.println(new_voltage);
         set_target_voltage(new_voltage);
-        decrease_percent = -1;
+        old_voltage = -1;
         return true;
     }
 }
@@ -149,6 +168,18 @@ double TDCDC::get_HV_voltage_fast(float alpha) {
     return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
     return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
     return return_V;
+}
+
+double TDCDC::get_filtered_enable_switch(float alpha) {
+    float x;
+    static float y = 0;
+
+    // Exponential smoothing:
+    // https://en.wikipedia.org/wiki/Exponential_smoothing
+
+    x = (double)analogRead(KILL_SWITCH_PIN); //TODO: can we do that reading non blocking: we lose at least 100uS!
+    y = alpha * x + (1.0 - alpha) * y;
+    return y;
 }
 
 
@@ -196,14 +227,27 @@ uint16_t TDCDC::get_last_Vnow() {
     return last_Vnow;
 }
 uint16_t TDCDC::get_Vset() {
-    return setpoint;
+    return old_voltage != -1 ? old_voltage : setpoint_save;
 }
 uint16_t TDCDC::get_Vmax() {
     return Vmax;
 }
 
+int16_t TDCDC::get_Verror_percent() {
+    int32_t Vset = (int16_t)setpoint;
+    int32_t Vnow = (int16_t)last_Vnow;
+    int32_t error = ((Vnow - Vset) * 100) / Vset;
+    /*Serial.print(Vset);
+    Serial.print("\t");
+    Serial.print(Vnow);
+    Serial.print("\t");
+    Serial.println(error);*/
+    return error;
+}
 
-
+bool TDCDC::get_enable_switch() {
+    return enable_switch;
+}
 
 //---------------------------------
 // setters

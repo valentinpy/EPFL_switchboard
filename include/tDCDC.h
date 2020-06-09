@@ -28,6 +28,10 @@ public:
 	uint16_t get_last_Vnow();
 	uint16_t get_Vset();
 	uint16_t get_Vmax();
+	int16_t get_Verror_percent();
+
+	bool get_enable_switch();
+
 
 	//------------------------------------------------------
 	// Setters
@@ -55,7 +59,7 @@ private:
 	// T = 1ms, alpha = 0.1 => tau = 10ms
 	uint32_t timerHVmeas; //timer for high voltage feedback filtering
 	const uint32_t PERIOD_HVMEAS_MS = 1; //sampling for high voltage feedback filtering
-	const float HVMEAS_ALPHA = 0.1; //alpha constant for high voltage feedback filtering
+	const float HVMEAS_ALPHA = 0.01;//0.1; //alpha constant for high voltage feedback filtering
 
 	double C0;
 	double C1;
@@ -64,6 +68,8 @@ private:
 
 	double get_HV_voltage(uint8_t nAvg); //deprecated
 	double get_HV_voltage_fast(float alpha);
+	double get_filtered_enable_switch(float alpha);
+
 
 	//------------------------------------------------------
 	// PID stuff
@@ -72,6 +78,7 @@ private:
 	double Ki;
 	double Kd;
 	double input, output, setpoint; //3 parameters for PID regulator
+	double setpoint_save;
 	PID HVPS_PID;
 
 
@@ -82,11 +89,19 @@ private:
 	void setPWMDuty(uint16_t duty);
 
 	//------------------------------------------------------
+	// Kill switch
+	//------------------------------------------------------
+	const uint8_t KILL_SWITCH_PIN = 19; //A1
+	const uint32_t KILL_SWITCH_PERIOD_MS = 10;
+	bool enable_switch;
+	uint32_t timer_enable_switch; //timer for high voltage feedback filtering
+
+	//------------------------------------------------------
 	// Misc.
 	//------------------------------------------------------
 	uint32_t timer;
 	const uint32_t PERIOD_MS = 1;
 	uint16_t Vmax;
-	int8_t decrease_percent = -1;
+	int16_t old_voltage = -1;
 };
 #endif
