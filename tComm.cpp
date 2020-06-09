@@ -64,6 +64,7 @@ void TComm::setup(){
   sCmd.addCommand("SHB", this->SHB);
   sCmd.addCommand("SHBF", this->SHBF);
   sCmd.addCommand("QHB", this->QHB);
+  sCmd.addCommand("QEnable", this->QEnable);
   sCmd.addCommand("Reboot", this->Reboot);
   sCmd.addCommand("Debug", this->Debug);
   sCmd.addCommand("vpy", this->vpy); // vpy testing command
@@ -219,14 +220,37 @@ void TComm::QKd(){
 }
 void TComm::SRelOn(){
     gTChannels.allOn();
+    gTChannels.setCurrentMode(TChannels::AllOn);
     gTChannels.printChannelsStatus();
 
 }
 void TComm::SRelOff(){
     gTChannels.allOff();
+    gTChannels.setCurrentMode(TChannels::AllOff);
     gTChannels.printChannelsStatus();
 }
 void TComm::SRelAuto(){
+    uint16_t retry_duration_s = sCmd.parseLongArg();
+    char *relays_to_use_raw = sCmd.next();
+    bool relays_to_use[6] = {1,1,1,1,1,1};
+    for (uint8_t i = 0; i < 6; i++) {
+            if ((relays_to_use_raw[i] == '0') || (relays_to_use_raw[i]) == '1') {
+                relays_to_use[i] = relays_to_use_raw[i] - '0';
+            }
+            else {
+                break;
+            }
+    }
+    Serial.print("[INFO]: Activation auto mode. Retry: ");
+    Serial.print(retry_duration_s);
+    Serial.print("[s]; ");
+    for (int i = 0;i < 6;i++) {
+        Serial.print(relays_to_use[i]);
+        Serial.print(",");
+    }
+    Serial.println("");
+    gTChannels.setCurrentMode(TChannels::AutoMode);
+    gTChannels.autoMode(retry_duration_s, relays_to_use);
 
 }
 void TComm::QRelState(){
@@ -295,6 +319,10 @@ void TComm::QHB(){
     Serial.println(gTHB.getState());
 }
 
+void TComm::QEnable() {
+    Serial.println(gTDCDC.get_enable_switch());
+}
+
 void TComm::Reboot() {
     Serial.println("[INFO]: Rebooting due to user request");
     wdt_enable(WDTO_15MS);
@@ -318,6 +346,14 @@ void TComm::vpy() {
     case 1:
         gTDCDC.restore_voltage();
         break;
+    case 2:
+        gTDCDC.set_target_voltage(2000);
+        gTHB.stateChange(1);
+        gTOC.stateChange(1);
+        gTChannels.setCurrentMode(TChannels::AutoMode);
+        bool tmp[] = { 1,0,1,0,1,1 };
+        gTChannels.autoMode(20, tmp);
+        break;
     default:
         Serial.println("Err VPY");
         break;
@@ -327,5 +363,6 @@ void TComm::vpy() {
 
 // This gets set as the default handler, and gets called when no other command matches.
 void TComm::unrecognized(const char *command) {
-  Serial.println("Err");
+  Serial.print("Err: ");
+  Serial.println(command);
 }

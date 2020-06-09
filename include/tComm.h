@@ -41,6 +41,7 @@ private:
   static void SHB();
   static void SHBF();
   static void QHB();
+  static void QEnable();
   static void Reboot();
   static void Debug();
   static void vpy(); // vpy testing command
