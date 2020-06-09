@@ -1,5 +1,10 @@
 #include "Arduino.h"
 #include "include/tHB.h"
+#include "include/tDCDC.h"
+
+
+// external instances of others tasks
+extern TDCDC gTDCDC;
 
 // TODO: handle PWM / high speed
 
@@ -48,6 +53,14 @@ void THB::run() {
 		else {
 			internalRun(false, DONTCARE);
 		}
+	}
+
+	// If we have a short circuit for too long, disconnect H-Bridge as a protection for DCDC
+	if (long_shortCircuitProtection()) {
+		operationMode = OPMANUAL;
+		newStateS.stateChanged = true;
+		newStateS.state = GND;
+		Serial.println("[WARN]: long short circuit detected - deactivating H-Bridge");
 	}
 }
 
@@ -175,4 +188,39 @@ void THB::internalRun(bool stateChange, stateEnum newState){
 		stateMachine = disconnect;
 		break;
 	}
+}
+
+bool THB::long_shortCircuitProtection() {
+	// This methods compares target voltage and measured voltage
+	// If the measured voltage is too log for a defined time: LSCP_MAX_TIME_MS, the functions return true
+	// To cancel the LSCP_MAX_TIME_MS timer, voltage has to be restored over threshold for at least LSCP_CANCEL_TIME_MS
+	// Method is non blocking, and the called should read return value
+	
+	// Return value is true if a long short-circuit has been detected
+
+
+	// detect begin of short circuit
+	uint16_t Vnow = gTDCDC.get_last_Vnow();
+	uint16_t Vset = gTDCDC.get_Vset();
+
+	if ((Vnow < (Vset / 2)) && (Vset > 50) && (gTDCDC.get_enable_switch())) { // low voltage
+		timer_lscp_1 = 0;
+		if (timer_lscp_2 == 0) { // Low voltage first time
+			timer_lscp_2 = millis();
+		}
+		else if ((timer_lscp_2 != 0) && (millis() - timer_lscp_2) > LSCP_MAX_TIME_MS) {
+			timer_lscp_2 = 0;
+			return true;
+		}
+	}
+	else { // not low voltage anymore for 500ms
+		if (timer_lscp_1 == 0) {
+			timer_lscp_1 = millis();
+		}
+		if ((millis() - timer_lscp_1) > LSCP_CANCEL_TIME_MS) {
+			timer_lscp_2 = 0;
+			timer_lscp_1 = 0;
+		}
+	}
+	return false;
 }
