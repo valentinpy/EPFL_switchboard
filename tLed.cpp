@@ -13,7 +13,7 @@ void TLed::setup() {
 
 void TLed::run() {
 	if (millis() - lastRun > PERIOD_MS) {
-		if (gTDCDC.get_last_Vnow() > 10) {
+		if (gTDCDC.get_last_Vnow() > 100) {
 			ledState = !ledState;
 		}
 		else {
