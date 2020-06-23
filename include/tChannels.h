@@ -18,6 +18,7 @@ public:
 	void getChannelsStatus(bool* retVal);
 	void printChannelsStatus();
 	void setCurrentMode(autoModeEnum newCurrentMode);
+	int8_t isTestingShort();
 
 private:
 	const int Rel0_PIN = 23;
@@ -35,6 +36,7 @@ private:
 	const byte NBREL = 6;
 
 	autoModeEnum currentMode;
+	uint8_t testingShort;
 
 
 	bool set6(bool* state);

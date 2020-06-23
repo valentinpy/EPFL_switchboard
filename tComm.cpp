@@ -5,8 +5,6 @@
 #include <avr/wdt.h>
 #include "userdef.h"
 
-
-
 #include "include/tComm.h"
 #include "include/tDCDC.h"
 #include "include/tOC.h"
@@ -58,6 +56,7 @@ void TComm::setup(){
   sCmd.addCommand("SRelOff", this->SRelOff);
   sCmd.addCommand("SRelAuto", this->SRelAuto);
   sCmd.addCommand("QRelState", this->QRelState);
+  sCmd.addCommand("QTestingShort", this->QTestingShort);
   sCmd.addCommand("SOC", this->SOC);
   sCmd.addCommand("SOCF", this->SOCF);
   sCmd.addCommand("QOC", this->QOC);
@@ -256,6 +255,11 @@ void TComm::SRelAuto(){
 void TComm::QRelState(){
     gTChannels.printChannelsStatus();
 }
+
+void TComm::QTestingShort() {
+    Serial.println(gTChannels.isTestingShort());
+}
+
 void TComm::SOC(){
     uint8_t val = (uint8_t)sCmd.parseLongArg();
     if ((val == 0) || (val == 1) || (val == 3)) {

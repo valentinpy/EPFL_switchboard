@@ -35,6 +35,7 @@ private:
   static void SRelOff();
   static void SRelAuto();
   static void QRelState();
+  static void QTestingShort();
   static void SOC();
   static void SOCF();
   static void QOC();
