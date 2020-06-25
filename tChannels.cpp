@@ -11,6 +11,7 @@ void TChannels::setup(){
     pinMode(Rel_pin[i], OUTPUT);
     digitalWrite(Rel_pin[i], LOW);
     Rel_status[i] = false;
+    RelState_testing[i] = 0;
   }
   autoModeState = AUTOSTATE_OFF;
   testingShort = 0;
@@ -149,6 +150,9 @@ bool TChannels::relay_state_machine() {
 
     else if (autoModeState == AUTOSTATE_NORMAL) {
         testingShort = 0;
+        for (int i = 0; i < NBREL; i++) {
+            RelState_testing[i] = 0;
+        }
 
         // Normal mode: detect short circuits and handle auto retry if activated
         if ((Vnow < Vthreshold) && (timer1 == 0)) { // &&Vset>50
@@ -275,12 +279,13 @@ bool TChannels::relay_state_machine() {
                 autoModeState = AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5;
                 timer1 = millis();
             }
-
-            Serial.print("[INFO]: Activating channel: ");
-            Serial.println(shortcircuit_finder_index);
-            digitalWrite(Rel_pin[shortcircuit_finder_index], true);
-            timer1 = millis();
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1; //stay here
+            else {
+                Serial.print("[INFO]: Activating channel: ");
+                Serial.println(shortcircuit_finder_index);
+                digitalWrite(Rel_pin[shortcircuit_finder_index], true);
+                timer1 = millis();
+                autoModeState = AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1; //stay here
+            }
         }
         else if ((millis() - timer1) > RELAUTO_REL_TIME_MS) {
             //Serial.println("[INFO]: Delay elapsed, going to AUTOSTATE_CONFIRMED_SHORT_SEARCHING_2");
@@ -347,18 +352,21 @@ bool TChannels::relay_state_machine() {
     else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5) {
         if ((millis() - timer1) > RELAUTO_WAITING_VOTLAGE_REG_TIME_MS) {
             if (shortcircuit_finder_index >= 5) {
-                // Serial.println("finished");
+                Serial.print("[INFO] finished ");
                 //Rel_apply_testing();
                 for (int i = 0; i < 6; i++) {
                     if (RelState_testing[i]) {
                         digitalWrite(Rel_pin[i], true);
                         Rel_status[i] = true;
+                        Serial.print("1,");
                     }
                     else {
                         digitalWrite(Rel_pin[i], false);
                         Rel_status[i] = false;
+                        Serial.print("0,");
                     }
                 }
+                Serial.println("");
                 timer_relretry = millis();
                 autoModeState= AUTOSTATE_NORMAL;
             }
