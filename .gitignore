@@ -1,0 +1,6 @@
+Release/
+old/
+.vs/
+__vm/
+*.vcxproj*
+*.sln
