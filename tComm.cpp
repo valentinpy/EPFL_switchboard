@@ -114,8 +114,13 @@ void TComm::SVset(){
   
 }
 void TComm::QVnow(){
-    //Serial.println("Not implemented yet");
-    Serial.println(gTDCDC.get_last_Vnow());
+    // If Vset = 0, measured voltage can be non 0 due to noise,... 
+    if ((gTDCDC.get_Vset() == 0) && (gTDCDC.get_last_Vnow() < 100)) {
+        Serial.println("0");
+    }
+    else {
+        Serial.println(gTDCDC.get_last_Vnow());
+    }
 }
 void TComm::QName(){
     char buff[21];
