@@ -25,6 +25,7 @@ public:
 	double get_Ki();
 	double get_Kd();
 
+	uint16_t get_last_Vcurrent();
 	uint16_t get_last_Vnow();
 	uint16_t get_Vset();
 	uint16_t get_Vmax();
@@ -65,9 +66,11 @@ private:
 	double C1;
 	double C2;
 	uint16_t last_Vnow;
+	uint16_t last_Vcurrent;
 
 	double get_HV_voltage(uint8_t nAvg); //deprecated
 	double get_HV_voltage_fast(float alpha);
+	double get_VCurrent_fast(float alpha);
 	double get_filtered_enable_switch(float alpha);
 
 

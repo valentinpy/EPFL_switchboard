@@ -9,6 +9,7 @@
 //#define KILL_STATE_PIN 0 // Voltage for "kill switch" state. (analog input, due to voltage divider)
 
 static const uint8_t HV_FB_PIN = 18; // Voltage representing high voltage output, voltage divider ratio: 1000
+static const uint8_t CURRENT_FB_PIN = 20;
 static const uint8_t DCDC_CTRL_PIN = 13; // Digital output pin for driving transistor of buck converter before HV DCDC
 extern HDBG gHDBG;
 
@@ -67,6 +68,7 @@ void TDCDC::run(){
     if (millis() - timerHVmeas >= PERIOD_HVMEAS_MS) {
         timerHVmeas = millis();
         last_Vnow = get_HV_voltage_fast(HVMEAS_ALPHA);
+        last_Vcurrent = get_VCurrent_fast(HVMEAS_ALPHA);
     }
 
     if (millis() - timer_enable_switch >= KILL_SWITCH_PERIOD_MS) {  
@@ -170,6 +172,23 @@ double TDCDC::get_HV_voltage_fast(float alpha) {
     return return_V;
 }
 
+double TDCDC::get_VCurrent_fast(float alpha) {
+    float x;
+    static float y = 0;
+    float return_V;
+
+    // Exponential smoothing:
+    // https://en.wikipedia.org/wiki/Exponential_smoothing
+
+    x = (double)analogRead(CURRENT_FB_PIN); //TODO: can we do that reading non blocking: we lose at least 100uS!
+    y = alpha * x + (1.0 - alpha) * y;
+
+
+    // calibration factor
+    return_V = y * (float)5 / 1024.0; // conversion 10bit ADC => voltage 0..5
+    return return_V;
+}
+
 double TDCDC::get_filtered_enable_switch(float alpha) {
     float x;
     static float y = 0;
@@ -225,6 +244,9 @@ double TDCDC::get_Kd() {
 }
 uint16_t TDCDC::get_last_Vnow() {
     return last_Vnow;
+}
+uint16_t TDCDC::get_last_Vcurrent() {
+    return last_Vcurrent;
 }
 uint16_t TDCDC::get_Vset() {
     return old_voltage != -1 ? old_voltage : setpoint_save;

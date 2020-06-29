@@ -57,6 +57,7 @@ void TComm::setup(){
   sCmd.addCommand("SRelAuto", this->SRelAuto);
   sCmd.addCommand("QRelState", this->QRelState);
   sCmd.addCommand("QTestingShort", this->QTestingShort);
+  sCmd.addCommand("QCurrent", this->QCurrent);
   sCmd.addCommand("SOC", this->SOC);
   sCmd.addCommand("SOCF", this->SOCF);
   sCmd.addCommand("QOC", this->QOC);
@@ -263,6 +264,10 @@ void TComm::QRelState(){
 
 void TComm::QTestingShort() {
     Serial.println(gTChannels.isTestingShort());
+}
+
+void TComm::QCurrent() {
+    Serial.println(gTDCDC.get_last_Vcurrent());
 }
 
 void TComm::SOC(){
