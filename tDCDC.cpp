@@ -167,7 +167,7 @@ double TDCDC::get_HV_voltage_fast(float alpha) {
     
 
     // calibration factor
-    return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
+    return_V = y * (float)5000 / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
     return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
     return return_V;
 }
