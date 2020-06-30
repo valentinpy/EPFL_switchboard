@@ -26,7 +26,7 @@ public:
 	double get_Kd();
 
 	double get_last_Vcurrent();
-	uint16_t get_last_Vnow();
+	double get_last_Vnow();
 	uint16_t get_Vset();
 	uint16_t get_Vmax();
 	int16_t get_Verror_percent();
@@ -65,7 +65,7 @@ private:
 	double C0;
 	double C1;
 	double C2;
-	uint16_t last_Vnow;
+	double last_Vnow;
 	double last_Vcurrent;
 
 	double get_HV_voltage(uint8_t nAvg); //deprecated

@@ -170,10 +170,10 @@ double TDCDC::get_HV_voltage_fast(float alpha) {
 
     x = (double)analogRead(HV_FB_PIN); //TODO: can we do that reading non blocking: we lose at least 100uS!
     y = alpha * x + (1.0 - alpha) * y;
-    
+
 
     // calibration factor
-    return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
+    return_V = y * (float)5000.0 / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
     return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
     return return_V;
 }
@@ -247,7 +247,7 @@ double TDCDC::get_Ki() {
 double TDCDC::get_Kd() {
     return Kd;
 }
-uint16_t TDCDC::get_last_Vnow() {
+double TDCDC::get_last_Vnow() {
     return last_Vnow;
 }
 double TDCDC::get_last_Vcurrent() {
