@@ -120,7 +120,7 @@ void TComm::QVnow(){
         Serial.println("0");
     }
     else {
-        Serial.println(gTDCDC.get_last_Vnow());
+        Serial.println((int16_t)gTDCDC.get_last_Vnow());
     }
 }
 void TComm::QName(){
