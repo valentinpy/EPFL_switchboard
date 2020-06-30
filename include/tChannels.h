@@ -65,7 +65,7 @@ private:
 	uint32_t supplementary_delay_ms = 0;
 	int8_t shortcircuit_finder_index;
 	const uint8_t THRESHOLD_PERCENT = 80;
-	const uint8_t TEMP_DECREASE = 80;
+	const uint8_t TEMP_DECREASE = 50;
 	const uint16_t RELAUTO_MIN_LOW_VOLTAGE_TIME_MS = 200; // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
 	const uint16_t RELAUTO_TESTING_TIME_MS = 500; // Time for testing disconnexion
 	const uint16_t RELAUTO_WAITING_VOTLAGE_REG_TIME_MS = 500; // Time to wait to wait for voltage to change

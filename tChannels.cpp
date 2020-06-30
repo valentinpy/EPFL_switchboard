@@ -149,8 +149,6 @@ bool TChannels::relay_state_machine() {
     }
 
     else if (autoModeState == AUTOSTATE_NORMAL) {
-        gTDCDC.restore_voltage();
-
         testingShort = 0;
         for (int i = 0; i < NBREL; i++) {
             RelState_testing[i] = 0;
@@ -224,6 +222,7 @@ bool TChannels::relay_state_machine() {
             //Serial.println("[INFO]: Relays disconnected, increasing voltage");
 
             timer1 = millis();
+            gTDCDC.restore_voltage();
             
 
             // start searching
@@ -313,6 +312,10 @@ bool TChannels::relay_state_machine() {
             supplementary_delay_ms = 2*RELAUTO_WAITING_VOTLAGE_REG_TIME_MS;
         }
 
+        // decrease voltage
+        gTDCDC.decrease_temporary_voltage(0);
+
+
         // start waiting
         timer1 = millis();
         autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_3;
@@ -335,7 +338,8 @@ bool TChannels::relay_state_machine() {
 
     else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_4) {
         if ((millis() - timer1) > RELAUTO_REL_TIME_MS) {
-            //start waiting
+            //set voltage back on and start waiting
+            gTDCDC.restore_voltage();
             timer1 = millis();
             autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5;
         }
