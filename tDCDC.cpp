@@ -108,6 +108,12 @@ void TDCDC::run(){
 
 void TDCDC::set_target_voltage(uint16_t voltage){
     //setpoint = voltage;
+    if(voltage > Vmax) // limit to max voltage
+    {
+      voltage = Vmax;
+      Serial.println("[WARN]: Specified voltage is above the maximum. Setting target voltage to maximum instead.");
+    }
+      
     setpoint_save = voltage;
 }
 
@@ -183,7 +189,6 @@ double TDCDC::get_VCurrent_fast(float alpha) {
     x = (double)analogRead(CURRENT_FB_PIN); //TODO: can we do that reading non blocking: we lose at least 100uS!
     y = alpha * x + (1.0 - alpha) * y;
 
-
     // calibration factor
     return_V = y * (float)5 / 1024.0; // conversion 10bit ADC => voltage 0..5
     return return_V;
@@ -245,7 +250,7 @@ double TDCDC::get_Kd() {
 uint16_t TDCDC::get_last_Vnow() {
     return last_Vnow;
 }
-uint16_t TDCDC::get_last_Vcurrent() {
+double TDCDC::get_last_Vcurrent() {
     return last_Vcurrent;
 }
 uint16_t TDCDC::get_Vset() {

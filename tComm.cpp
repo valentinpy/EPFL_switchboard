@@ -116,7 +116,7 @@ void TComm::SVset(){
 }
 void TComm::QVnow(){
     // If Vset = 0, measured voltage can be non 0 due to noise,... 
-    if ((gTDCDC.get_Vset() == 0) && (gTDCDC.get_last_Vnow() < 100)) {
+    if ((gTDCDC.get_Vset() == 0 || gTDCDC.get_enable_switch() == 0) && (gTDCDC.get_last_Vnow() < 100)) {
         Serial.println("0");
     }
     else {
