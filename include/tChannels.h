@@ -64,7 +64,7 @@ private:
 
 	uint32_t supplementary_delay_ms = 0;
 	int8_t shortcircuit_finder_index;
-	const uint8_t THRESHOLD_PERCENT = 80;
+	const uint8_t THRESHOLD_PERCENT = 60; // VP TODO: This should be 80% of the target voltage, taking into account the 80% temp decrase during testing
 	const uint8_t TEMP_DECREASE = 80;
 	const uint16_t RELAUTO_MIN_LOW_VOLTAGE_TIME_MS = 200; // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
 	const uint16_t RELAUTO_TESTING_TIME_MS = 500; // Time for testing disconnexion

@@ -1,9 +1,53 @@
 import serial
 import numpy as np
 import matplotlib.pyplot as plt
-from switchboard import *
+from Switchboard import Switchboard
 from daqmx import *
 import time
+
+
+def record_voltage_sweep(target_v, settling_delay, measurement_duration, sampling_frequency, channels):
+    sample_number = measurement_duration * sampling_frequency  # Nombre d'echantillons par voie
+    # apply voltage setpoint and measure output
+    mean_data = np.array([]).reshape((-1, 2))
+    channels_str = ['/Dev1/Ai{}'.format(c) for c in channels]
+
+    ts = []
+    vs = []
+    t_start = time.perf_counter()
+
+    for v in target_v:
+        sw.set_voltage(v)
+        t_last_step = time.perf_counter()
+        dt = 0
+
+        # time.sleep(settling_delay)
+
+        while dt < settling_delay:
+            vs.append(sw.get_current_voltage())
+            tnow = time.perf_counter()
+            ts.append(tnow - t_start)
+            dt = tnow - t_last_step
+
+        tdata, data = mesureAnalogique.set_analog_measurement(channels_str,
+                                                              sampling_frequency,
+                                                              typeEch='fini',
+                                                              sample_number=sample_number)
+        mean_sample = np.mean(data, axis=1, keepdims=True).transpose()
+        mean_data = np.append(mean_data, mean_sample, axis=0)
+
+        msg = "Target voltage: {:4d}\t measured by switchboard: {:4d}\t measured by probe: {}"
+        print(msg.format(v, sw.get_current_voltage(), mean_sample))
+
+    plt.subplots()
+    plt.plot(ts, vs)
+    plt.xlabel("Time [s]")
+    plt.ylabel("Voltage [V]")
+    plt.draw()
+    plt.pause(0.1)
+
+    return mean_data
+
 
 if __name__ == '__main__':
     # load probe parameters
@@ -11,45 +55,34 @@ if __name__ == '__main__':
     p_probe = np.poly1d(probe_fit)
 
     # user defined settings
-    com_sw = "COM4"  # to be specified
     minvoltage = 500
-    maxvoltage = 4900
+    maxvoltage = 4800
     stepvoltage = 100
-    delay_sw_s = 5
+    delay_sw_s = 2
+    t = 2  # Durée d'acquisition (s)
 
     # init switchboard: connect, 0V, set coefficients for y=x (0,1,0)
-    sw = Switchboard(com_sw)
+    sw = Switchboard()
+    sw.open()
     sw.set_voltage(0)
-    sw.reset_coeff()
+    sw.set_output_on()
+    sw.reset_calibration_coefficients()
     time.sleep(1)
 
     # init DaqMx
     mesureAnalogique = DaqMx()
-    sampling_frequency = 1000  # Fréquence d'echantillonnage (Hz)
-    t = 1  # Durée d'acquisition (s)
-    sample_number = t * sampling_frequency  # Nombre d'echantillons par voie
+    sampling_freq = 1000  # Fréquence d'echantillonnage (Hz)
 
-    # first pass: apply voltage setpoint and measure output
-    target_voltage = []
-    mean_voltage_probe = []
-    std_voltage_probe = []
-    for v in range(minvoltage, maxvoltage, stepvoltage):
-        sw.set_voltage(v)
-        time.sleep(delay_sw_s)
-        # print(sw.get_voltage())
+    target_voltages = np.array(range(minvoltage, maxvoltage+1, stepvoltage))
 
-        tdata, data = mesureAnalogique.set_analog_measurement(['/Dev1/Ai0'], sampling_frequency, typeEch='fini',
-                                                              sample_number=sample_number)
-        target_voltage.append(v)
-        probeV = p_probe(np.mean(data))
-        mean_voltage_probe.append(probeV)
+    measured_V = record_voltage_sweep(target_voltages, delay_sw_s, t, sampling_freq, channels=[0, 1])
 
-        # std_voltage_probe.append(np.std(data))
-        print("Target voltage: {}\t voltage measured by probe: {}".format(v, probeV))
+    voltage_HV = p_probe(measured_V[:, 0])  # voltage measured by the HV probe
+    voltage_input = measured_V[:, 1]  # input voltage to the DCDC
 
-    fit = np.polyfit(target_voltage, mean_voltage_probe, 2)
+    fit = np.polyfit(target_voltages, voltage_HV, 2)
     p_sw = np.poly1d(fit)
-    xp = np.linspace(minvoltage / 1000, maxvoltage / 1000, 20)
+    # xp = np.linspace(minvoltage / 1000, maxvoltage / 1000, 20)
 
     # compute coefficients for best fit and apply to switchboards
     print("Probe curve equation:\n{}".format(p_sw))
@@ -58,31 +91,49 @@ if __name__ == '__main__':
 
     sw.set_voltage(0)
     time.sleep(1)
-    sw.set_coeff(fit[2], fit[1], fit[0])
+    sw.set_calibration_coefficients(fit[2], fit[1], fit[0])
 
     # second pass: check if the result is OK
-    mean_voltage_probe_after = []
-    for v in range(minvoltage, maxvoltage, stepvoltage):
-        sw.set_voltage(v)
-        time.sleep(delay_sw_s)
-        # print(sw.get_voltage())
 
-        tdata, data = mesureAnalogique.set_analog_measurement(['/Dev1/Ai0'], sampling_frequency, typeEch='fini',
-                                                              sample_number=sample_number)
-        probeV = p_probe(np.mean(data))
-        mean_voltage_probe_after.append(probeV)
-        print("Target voltage: {}\t voltage measured by probe after calibration: {}".format(v, probeV))
+    measured_V_after = record_voltage_sweep(target_voltages, delay_sw_s, t, sampling_freq, channels=[0, 1])
+    voltage_HV_after = p_probe(measured_V_after[:, 0])  # voltage measured by the HV probe
+    voltage_input_after = measured_V_after[:, 1]  # input voltage to the DCDC
+    voltage_fit = p_sw(target_voltages)
 
     sw.set_voltage(0)
-    # compute error before and after
-    error_before = [a - b for a, b in zip(mean_voltage_probe, target_voltage)]
-    error_after = [a - b for a, b in zip(mean_voltage_probe_after, target_voltage)]
+    sw.set_output_off()
 
-    plt.figure()
-    plt.plot(target_voltage, error_before, 'b+-', target_voltage, error_after, 'r+-')
-    plt.legend(["Error before", "Error after"])
-    plt.xlabel("Target voltage [V]")
-    plt.ylabel("Error voltage [V]")
+    # compute error before and after
+    error_before_HV = voltage_HV - target_voltages
+    error_after_HV = voltage_HV_after - target_voltages
+    error_fit = voltage_fit - target_voltages
+
+    fig1, ax1 = plt.subplots()
+    lines1 = ax1.plot(target_voltages, voltage_HV, 'b+-',
+                      target_voltages, voltage_HV_after, 'r+-')
+    ax1.set_xlabel("Target voltage [V]")
+    ax1.set_ylabel("Output voltage [V]")
+    ax2 = ax1.twinx()
+    lines2 = ax2.plot(target_voltages, voltage_input, 'g+-',
+                      target_voltages, voltage_input_after, 'y+-')
+    ax2.set_ylabel("Input voltage [V]")
+    ax1.legend(lines1+lines2, ["HV before", "HV after", "Input before", "Input after"])
+
+    fig2, ax3 = plt.subplots()
+    ax3.plot(target_voltages, error_before_HV, 'b+-',
+             target_voltages, error_after_HV, 'r+-',
+             target_voltages, error_fit, 'k-')
+    ax3.set_xlabel("Target voltage [V]")
+    ax3.set_ylabel("Error voltage [V]")
+    ax3.legend(["Error before", "Error after", "Fit"])
+
+    fig3, ax = plt.subplots()
+    ax.plot(target_voltages, voltage_HV / voltage_input, 'b+-',
+            target_voltages, voltage_HV_after / voltage_input_after, 'r+-')
+    ax.set_xlabel("Target voltage [V]")
+    ax.set_ylabel("DCDC gain")
+    ax.legend(["Gain before", "Gain after"])
+
     plt.show()
 
     sw.close()
