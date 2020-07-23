@@ -224,7 +224,10 @@ double TDCDC::get_Kd() {
     return Kd;
 }
 uint16_t TDCDC::get_last_Vnow() {
-    return last_Vnow;
+    if(setpoint_save == 0 && last_Vnow < 100)
+      return 0;
+    else
+      return last_Vnow;
 }
 uint16_t TDCDC::get_Vset() {
     return old_voltage != -1 ? old_voltage : setpoint_save;
