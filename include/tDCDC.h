@@ -10,9 +10,10 @@ public:
 	void setup();
 	void run();
 
-	bool decrease_temporary_voltage(uint8_t percentage);
-	bool restore_voltage();
-
+	bool restore_voltage();  // reset the voltage modifier to 1.0 so the target voltage is the one set by the user
+	
+	double target_voltage_modifier = 1.0;  // a modifier that will be applied to the set point (to decrease voltage temporarily)
+	
 
 	//------------------------------------------------------
 	// Getters
@@ -26,12 +27,16 @@ public:
 	double get_Kd();
 
 	uint16_t get_last_Vnow();
+	uint16_t get_last_PWM();
+	uint16_t get_last_Inow();
 	uint16_t get_Vset();
 	uint16_t get_Vmax();
 	int16_t get_Verror_percent();
 
 	bool get_enable_switch();
-
+	
+	bool is_voltage_stable();
+	
 
 	//------------------------------------------------------
 	// Setters
@@ -44,6 +49,7 @@ public:
 	void set_Kd(double Kd);
 
 	void set_target_voltage(uint16_t  voltage);
+	void reset_stabilization_timer();
 
 private:
 	//------------------------------------------------------
@@ -59,16 +65,24 @@ private:
 	// T = 1ms, alpha = 0.1 => tau = 10ms
 	uint32_t timerHVmeas; //timer for high voltage feedback filtering
 	const uint32_t PERIOD_HVMEAS_MS = 1; //sampling for high voltage feedback filtering
-	const float HVMEAS_ALPHA = 0.01;//0.1; //alpha constant for high voltage feedback filtering
+	const float HVMEAS_ALPHA = 0.1; //alpha constant for high voltage feedback filtering
+	const float CURMEAS_ALPHA = 0.1; //alpha constant for current feedback filtering (1 = no filtering)
+	const uint32_t PERIOD_V_STABLE_MS = 500; // how long voltage needs to be on target to be considered "stable"
+	const uint16_t V_STABLE_THRESHOLD = 20; // how close voltage needs to be to set point to be considered on target
 
 	double C0;
 	double C1;
 	double C2;
 	uint16_t last_Vnow;
-
-	double get_HV_voltage(uint8_t nAvg); //deprecated
-	double get_HV_voltage_fast(float alpha);
+	uint16_t last_PWM;
+	uint16_t last_Inow;
+	uint32_t timer_last_V_off_target;
+	bool voltage_stable = false;
+	bool voltage_drop_detected = false;
+	
+	void measure_HV_voltage_fast(float alpha);
 	double get_filtered_enable_switch(float alpha);
+	void measure_current_fast(float alpha);
 
 
 	//------------------------------------------------------
@@ -102,6 +116,5 @@ private:
 	uint32_t timer;
 	const uint32_t PERIOD_MS = 1;
 	uint16_t Vmax;
-	int16_t old_voltage = -1;
 };
 #endif

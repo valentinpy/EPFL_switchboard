@@ -19,6 +19,7 @@ public:
 	void printChannelsStatus();
 	void setCurrentMode(autoModeEnum newCurrentMode);
 	int8_t isTestingShort();
+	void voltage_drop_detected_callback();
 
 private:
 	const int Rel0_PIN = 23;
@@ -37,7 +38,8 @@ private:
 
 	autoModeEnum currentMode;
 	uint8_t testingShort;
-
+	
+	bool voltage_drop_detected = false;
 
 	bool set6(bool* state);
 
@@ -49,13 +51,9 @@ private:
 		AUTOSTATE_RST,
 		AUTOSTATE_NORMAL,
 		AUTOSTATE_CONFIRMED_SHORT_INIT,
-		AUTOSTATE_CONFIRMED_SHORT_WAITING_DECO,
-		AUTOSTATE_CONFIRMED_SHORT_START_SEARCHING,
-		AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1,
-		AUTOSTATE_CONFIRMED_SHORT_SEARCHING_2,
-		AUTOSTATE_CONFIRMED_SHORT_SEARCHING_3,
-		AUTOSTATE_CONFIRMED_SHORT_SEARCHING_4,
-		AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5
+		AUTOSTATE_CONFIRMED_SHORT_WAITING,
+		AUTOSTATE_CONFIRMED_SHORT_TESTING,
+		AUTOSTATE_CONFIRMED_SHORT_TESTING_DONE
 	};
 	autoModeStateEnum autoModeState;
 
@@ -65,10 +63,10 @@ private:
 	uint32_t supplementary_delay_ms = 0;
 	int8_t shortcircuit_finder_index;
 	const uint8_t THRESHOLD_PERCENT = 80;
-	const uint8_t TEMP_DECREASE = 50;
-	const uint16_t RELAUTO_MIN_LOW_VOLTAGE_TIME_MS = 200; // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
-	const uint16_t RELAUTO_TESTING_TIME_MS = 500; // Time for testing disconnexion
-	const uint16_t RELAUTO_WAITING_VOTLAGE_REG_TIME_MS = 500; // Time to wait to wait for voltage to change
+	const double TEMP_DECREASE_MODIFIER = 0.8;
+	const uint16_t RELAUTO_MIN_LOW_VOLTAGE_TIME_MS = 500; // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
+	const uint16_t RELAUTO_TESTING_TIME_MS = 1000; // Test duration before declaring a faulty sample
+	const uint16_t RELAUTO_WAITING_VOTLAGE_REG_TIME_MS = 3000; // Max time to wait to wait for voltage to stabilize when no samples are connected
 	const uint16_t RELAUTO_REL_TIME_MS = 200;
 
 	uint32_t main_timer;

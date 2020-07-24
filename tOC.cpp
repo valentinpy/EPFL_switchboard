@@ -1,5 +1,9 @@
 #include "Arduino.h"
 #include "include/tOC.h"
+#include "include/tDCDC.h"
+
+// external instances of others tasks
+extern TDCDC gTDCDC;
 
 //enum stateEnum { GND, HIGHZ, HVA, HBB };
 //enum stateMachineEnum { reset, standby, newState, disconnect, reconnect };
@@ -40,7 +44,7 @@ void TOC::run() {
 	// TODO: This is "soft PWM", should use hardware counter compare
 	else {
 		//Serial.println(period_us);
-		if (micros() - timer_freq_us > period_us) {
+		if (micros() - timer_freq_us > period_us && !ac_paused) {
 			timer_freq_us = micros();
 			//Serial.println("YOLO");
 			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
@@ -56,6 +60,8 @@ void TOC::run() {
 void TOC::stateChange(uint8_t newState) {
 	newStateS.stateChanged = true;
 	newStateS.state = newState;
+  gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
+  // TODO: figure something out so we don't trigger short detectin on each cycle if switching at low frequency
 }
 
 uint8_t TOC::getState() {
@@ -84,6 +90,8 @@ void TOC::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
 	}
 	frequency_toggler = 0; // init "toggler", variable used to switch from low to high,... in frequency mode
 }
+
+
 
 void TOC::internalRun(bool stateChange, stateEnum newState) {
 	if (stateChange) {

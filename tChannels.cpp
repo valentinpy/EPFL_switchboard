@@ -1,10 +1,12 @@
 #include "Arduino.h"
 #include "include/tChannels.h"
 #include "include/tDCDC.h"
+#include "include/tOC.h"
 
 
 // external instances of others tasks
 extern TDCDC gTDCDC;
+extern TOC gTOC;
 
 void TChannels::setup(){
   for(int i=0; i<NBREL; i++){
@@ -19,11 +21,19 @@ void TChannels::setup(){
 }
 
 void TChannels::run(){
-    if ((millis() - main_timer) > MAIN_DELAY_MS) {
-        main_timer = millis();
+//    if ((millis() - main_timer) > MAIN_DELAY_MS) {
+//        main_timer = millis();
         if ((currentMode == AutoMode) && (gTDCDC.get_Vset() > 50) && (gTDCDC.get_enable_switch())) {
             bool currentlyTesting = relay_state_machine();
         }
+//    }
+}
+
+void TChannels::voltage_drop_detected_callback() {
+    if (!testingShort) {
+        // unless we're already testing for shorts, test for shorts!
+        voltage_drop_detected = true;
+        run();
     }
 }
 
@@ -37,6 +47,7 @@ void TChannels::allOn(){
     Rel_status[i] = true;
   }
   currentMode = AllOn;
+  gTDCDC.restore_voltage();
   testingShort = 0;
 }
 
@@ -46,6 +57,7 @@ void TChannels::allOff(){
     Rel_status[i] = false;
   }
   currentMode = AllOff;
+  gTDCDC.restore_voltage();
   testingShort = 0;
 }
 
@@ -53,8 +65,9 @@ bool TChannels::set1(unsigned int channel, bool state){
   if(channel < NBREL){
     digitalWrite(Rel_pin[channel], state);
     Rel_status[channel] = state;
-    currentMode = Manual;
-    testingShort = 0;
+    gTDCDC.reset_stabilization_timer(); // reset timer so that we don't just assume voltage is stable because it was a moment ago
+//    currentMode = Manual;
+//    testingShort = 0;
     return true;
   }
   else{
@@ -68,6 +81,7 @@ bool TChannels::set6(bool* state) {
         digitalWrite(Rel_pin[i], state[i]);
         Rel_status[i] = state[i];
     }
+    gTDCDC.reset_stabilization_timer(); // reset timer so that we don't just assume voltage is stable because it was a moment ago
     //currentMode = Manual;
     return true;
 }
@@ -129,7 +143,7 @@ bool TChannels::relay_state_machine() {
         testingShort = 0;
     }
 
-    else if (autoModeState == AUTOSTATE_RST) {
+    if (autoModeState == AUTOSTATE_RST) {
         // Reset
         Serial.println("[INFO]: AUTOSTATE_RST");
 
@@ -143,12 +157,13 @@ bool TChannels::relay_state_machine() {
 
         // Ensure we have correct target voltage
         gTDCDC.restore_voltage();
+        gTOC.ac_paused = false;  // make sure AC is not disabled
 
         // Next state, normal mode
         autoModeState = AUTOSTATE_NORMAL;
     }
 
-    else if (autoModeState == AUTOSTATE_NORMAL) {
+    if (autoModeState == AUTOSTATE_NORMAL) {
         testingShort = 0;
         for (int i = 0; i < NBREL; i++) {
             RelState_testing[i] = 0;
@@ -168,9 +183,10 @@ bool TChannels::relay_state_machine() {
             autoModeState = AUTOSTATE_NORMAL;
         }
 
-        else if ((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS)) { //&& (Vset > 50) 
+        if (voltage_drop_detected || ((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS))) { //&& (Vset > 50) 
             // Short circuit confirmed
             // Go to confirmed short circuit init case
+            voltage_drop_detected = false; // reset flag (in case it was set)
             timer1 = 0;
             autoModeState = AUTOSTATE_CONFIRMED_SHORT_INIT;
         }
@@ -182,210 +198,100 @@ bool TChannels::relay_state_machine() {
         }
     }
 
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_INIT) {
+    if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_INIT) {
         // decrease voltage, wait, and disconnect everything, and cancel Switching
-        if (timer1 == 0) {
-            //Serial.println("[INFO]: AUTOSTATE_CONFIRMED_SHORT_INIT");
-            //Decrease voltage
-            gTDCDC.decrease_temporary_voltage(TEMP_DECREASE);
-
-            // Store current time
-            timer1 = millis();
-
-            // Stay in that state for a moment
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_INIT;
-        }
-        else if ((millis() - timer1) >= RELAUTO_WAITING_VOTLAGE_REG_TIME_MS) {
-            //Serial.println("[INFO]: Disconnecting all relays");
-            // Delay elapsed, voltage should have dropped, disconnect everything, start new timer and go to next state
-            bool tmp[6] = { 0,0,0,0,0,0 };
-            set6(tmp);
-            
-            // store current time for next state
-            timer1 = millis();
-
-            // go to next state
-            autoModeState = AUTOSTATE_CONFIRMED_SHORT_WAITING_DECO;
-        }
-        else {
-            //stay in that case until delay elapsed
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_INIT;
-        }
-    }
-
-    else if (autoModeState == AUTOSTATE_CONFIRMED_SHORT_WAITING_DECO) {
+        Serial.println("[INFO]: AUTOSTATE_CONFIRMED_SHORT_INIT");
+        //Decrease voltage for testing
+        gTDCDC.target_voltage_modifier = TEMP_DECREASE_MODIFIER;
+        //  turn AC off
+        gTOC.ac_paused = true;
+        // disconnect all relays
+        bool tmp[6] = { 0,0,0,0,0,0 };
+        set6(tmp);
+        
         testingShort = 1;
-
-        // wait for relays to disconnect
-        if ((millis() - timer1) > RELAUTO_REL_TIME_MS) {
-            //relays must be disconnected yet, let's increase voltage again
-            //Serial.println("[INFO]: Relays disconnected, increasing voltage");
-
-            timer1 = millis();
-            gTDCDC.restore_voltage();
-            
-
-            // start searching
-            autoModeState = AUTOSTATE_CONFIRMED_SHORT_START_SEARCHING;
-        }
-        else {
-            // stay in that state until relays switches
-            autoModeState = AUTOSTATE_CONFIRMED_SHORT_WAITING_DECO;
-        }
-    }
-
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_START_SEARCHING) {
-        //  all relays disconnected
-        //increase voltage + wait
-        if ((millis() - timer1) > RELAUTO_TESTING_TIME_MS) {
-            //Serial.println("[INFO]: AUTOSTATE_CONFIRMED_SHORT_START_SEARCHING");
-            // Voltage should have raised now (all relays disconnected)
-            //Vthreshold = (word)((THRESHOLD_PERCENT / 100.0) * (float)Vset);
-            if (Vnow < Vthreshold) {
-                Serial.println("[ERR]: Voltage still too low, aborting - settting target voltage to 0");
-                bool tmp[6] = { 0,0,0,0,0,0 };
-                set6(tmp);
-                autoModeState= AUTOSTATE_OFF;
-                gTDCDC.set_target_voltage(0);
-            }
-            else {
-                // Go to next state: trying all relays
-                shortcircuit_finder_index = 0;
+        shortcircuit_finder_index = 0; // start testing from relay 0
                
-                //Go to next state
-                autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1;
-                timer1 = 0;
-            }
-        }
-        else {
-            // stay in that state until voltage rises again
-            autoModeState = AUTOSTATE_CONFIRMED_SHORT_START_SEARCHING;
-        }
+        timer1 = millis();  // start timer for next state
+
+        // go to next state
+        autoModeState = AUTOSTATE_CONFIRMED_SHORT_WAITING;
     }
 
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1) {
-        //voltage is on, relays are off
-        // relay i => on
-        //wait
-        if (timer1 == 0) {
-            // Relay on, then start waiting
-            //TODO: only do if channel activated by user!!
-            //Serial.println("[INFO]: AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1");
-
-            while ((!Rel_automode_enabled[shortcircuit_finder_index]) && (shortcircuit_finder_index < 6)){
-                shortcircuit_finder_index++;
-            }
-            if (shortcircuit_finder_index == 6) {
-                autoModeState = AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5;
-                timer1 = millis();
+    else if (autoModeState == AUTOSTATE_CONFIRMED_SHORT_WAITING) {
+        // with all relays off, wait until voltage is stable
+        if (gTDCDC.is_voltage_stable()) {
+            // voltage is stable, let's turn on one relay and see if it remains stable
+            Serial.print("[INFO]: Relays off, voltage stabilized -> switching on channel ");
+            Serial.println(shortcircuit_finder_index);
+            if (shortcircuit_finder_index < NBREL) {
+                // next channel index is in range, so we're not done testing yet
+                set1(shortcircuit_finder_index, true);
+                timer1 = millis();  // reset timer for next state
+                autoModeState = AUTOSTATE_CONFIRMED_SHORT_TESTING;
             }
             else {
-                Serial.print("[INFO]: Activating channel: ");
-                Serial.println(shortcircuit_finder_index);
-                digitalWrite(Rel_pin[shortcircuit_finder_index], true);
-                timer1 = millis();
-                autoModeState = AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1; //stay here
+                // all channels tested, so let's finish up and resume normal operation
+                autoModeState = AUTOSTATE_CONFIRMED_SHORT_TESTING_DONE;
             }
         }
-        else if ((millis() - timer1) > RELAUTO_REL_TIME_MS) {
-            //Serial.println("[INFO]: Delay elapsed, going to AUTOSTATE_CONFIRMED_SHORT_SEARCHING_2");
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_2; // go to next state
+        else if ((millis() - timer1) > RELAUTO_WAITING_VOTLAGE_REG_TIME_MS) {
+            // timeout expired, voltage did not stabilize -> seems to be a problem with the HVPS, not any of the samples
+            Serial.println("[ERR]: Voltage did not stabilize with all relays off, aborting - settting target voltage to 0");
+            gTDCDC.set_target_voltage(0);
+            autoModeState= AUTOSTATE_OFF;
         }
         else {
-            //wait here
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1;
+            // not yet stable -> stay in this state to keep waiting
+            autoModeState = AUTOSTATE_CONFIRMED_SHORT_WAITING;
         }
     }
 
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_2) {
-        // measure voltage
-        if (Vnow > Vthreshold) {
-            //Serial.print("[INFO]: Voltage above threshold, saved state: ON for channel ");
-            //Serial.println(shortcircuit_finder_index);
-            RelState_testing[shortcircuit_finder_index] = true;
-            supplementary_delay_ms = 0;
-        }
-        else {
-            //Serial.print("[INFO]: Voltage below threshold, saved state: OFF for channel ");
-            //Serial.println(shortcircuit_finder_index);
-            RelState_testing[shortcircuit_finder_index] = false;
-            supplementary_delay_ms = 2*RELAUTO_WAITING_VOTLAGE_REG_TIME_MS;
-        }
+    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_TESTING) {
+        // with one relay on, wait until voltage is stable (or timeout expired)
+        bool v_stable = gTDCDC.is_voltage_stable();
+        if (v_stable || (millis() - timer1) > RELAUTO_TESTING_TIME_MS) {
+            // we're done with this channel -> store result and move on to the next
+            
+            RelState_testing[shortcircuit_finder_index] = v_stable; // store whether or not this channel was fine
 
-        // decrease voltage
-        gTDCDC.decrease_temporary_voltage(0);
-
-
-        // start waiting
-        timer1 = millis();
-        autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_3;
-
-    }
-
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_3) {
-        if ((millis() - timer1) > (RELAUTO_WAITING_VOTLAGE_REG_TIME_MS + supplementary_delay_ms)) {
-            //disconnect and wait in next state
-            digitalWrite(Rel_pin[shortcircuit_finder_index], false);
-            timer1 = millis();
-            //Serial.println("[INFO]: going to state: AUTOSTATE_CONFIRMED_SHORT_SEARCHING_4");
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_4;
-        }
-        else {
-            //wait here until V=0
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_3;
-        }
-    }
-
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_4) {
-        if ((millis() - timer1) > RELAUTO_REL_TIME_MS) {
-            //set voltage back on and start waiting
-            gTDCDC.restore_voltage();
-            timer1 = millis();
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5;
-        }
-        else {
-            //wait here until relays disconnected
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_4;
-        }
-    }
-
-    else if (autoModeState== AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5) {
-        if ((millis() - timer1) > RELAUTO_WAITING_VOTLAGE_REG_TIME_MS) {
-            if (shortcircuit_finder_index >= 5) {
-                Serial.print("[INFO] finished ");
-                //Rel_apply_testing();
-                for (int i = 0; i < 6; i++) {
-                    if (RelState_testing[i]) {
-                        digitalWrite(Rel_pin[i], true);
-                        Rel_status[i] = true;
-                        Serial.print("1,");
-                    }
-                    else {
-                        digitalWrite(Rel_pin[i], false);
-                        Rel_status[i] = false;
-                        Serial.print("0,");
-                    }
-                }
-                Serial.println("");
-                timer_relretry = millis();
-                autoModeState= AUTOSTATE_NORMAL;
+            if(v_stable){
+                Serial.print("[INFO]: Voltage stabilized, channel ");
+                Serial.print(shortcircuit_finder_index);
+                Serial.println(" is OK");
+            } else {
+                Serial.print("[INFO]: Voltage did not stabilize, channel ");
+                Serial.print(shortcircuit_finder_index);
+                Serial.println(" is faulty");
             }
-            else {
-                // start for next relay
-                //Serial.print("[INFO]: Finished for relay");
-                //Serial.print(shortcircuit_finder_index);
-                //Serial.println(", testing next one");
+            set1(shortcircuit_finder_index, false); // turn this channel off again
 
-                shortcircuit_finder_index++;
-                timer1 = 0;
-                autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_1;
-                
-            }
+            shortcircuit_finder_index++; // move on to next channel
+            
+            timer1 = millis();  // reset timer for next state
+            autoModeState = AUTOSTATE_CONFIRMED_SHORT_WAITING; // back to waiting with relays off
         }
         else {
-            //wait here until voltage back to normal
-            autoModeState= AUTOSTATE_CONFIRMED_SHORT_SEARCHING_5;
+            // not yet stable -> stay in this state to keep waiting
+            autoModeState = AUTOSTATE_CONFIRMED_SHORT_TESTING;
         }
+    }
+
+    else if (autoModeState == AUTOSTATE_CONFIRMED_SHORT_TESTING_DONE) {
+        // test is done -> reconnect good samples, restore the proper voltage and resume
+
+        set6(RelState_testing);
+        
+        Serial.print("[INFO] finished: ");
+        printChannelsStatus();
+
+        // test finished so we can restore the proper voltage
+        gTDCDC.restore_voltage();
+        timer1 = 0;  // reset timer so we don't immediatly detect another short circuit while the voltage is restored
+        
+        timer_relretry = millis();
+        autoModeState= AUTOSTATE_NORMAL;
+        
     }
     
     if ((autoModeState == AUTOSTATE_NORMAL) || (autoModeState == AUTOSTATE_OFF)) {

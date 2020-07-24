@@ -17,8 +17,9 @@ public:
 	uint16_t getMaxFrequencyHz();
 
 	void setOperationMode(operationModeEnum newOpMode, double newFrequency=0);
+	bool ac_paused = false;  // flag to indicate if AC should be paused (during testing)
 	
-
+	
 private:
 	// pins definition
 	const uint8_t OC_H_PIN = 28; // OC: high side
@@ -50,7 +51,7 @@ private:
 	// Frequency mode variables
 	uint32_t period_us; // computed (half)-period (us)
 	uint8_t frequency_toggler; //variable to switch states
-
+	
 	//Timers
 	uint32_t timer;
 	uint32_t timer_freq_us; // for frequency mode only

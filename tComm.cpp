@@ -85,7 +85,14 @@ void TComm::run(){
 }
 
 void TComm::debugPrint() {
+    Serial.println("Vnow[V] Stable[0/1000] PWM[1023-0] Inow[0.1mA]");
     Serial.print(gTDCDC.get_last_Vnow());
+    Serial.print(", ");
+    Serial.print(gTDCDC.is_voltage_stable()*1000);
+    Serial.print(", ");
+    Serial.print(gTDCDC.get_last_PWM());
+    Serial.print(", ");
+    Serial.print(gTDCDC.get_last_Inow() * 10);
     Serial.println("");
 }
 
@@ -345,7 +352,7 @@ void TComm::vpy() {
     
     switch (val) {
     case 0:
-        gTDCDC.decrease_temporary_voltage(80);
+        gTDCDC.target_voltage_modifier = 0.8;
         break;
     case 1:
         gTDCDC.restore_voltage();
@@ -355,8 +362,8 @@ void TComm::vpy() {
         gTHB.stateChange(1);
         gTOC.stateChange(1);
         gTChannels.setCurrentMode(TChannels::AutoMode);
-        bool tmp[] = { 1,0,1,0,1,1 };
-        gTChannels.autoMode(20, tmp);
+        bool tmp[] = { 1,1,1,1,1,1 };
+        gTChannels.autoMode(0, tmp);
         break;
     default:
         Serial.println("Err VPY");
