@@ -69,6 +69,8 @@ private:
 	const float CURMEAS_ALPHA = 0.1; //alpha constant for current feedback filtering (1 = no filtering)
 	const uint32_t PERIOD_V_STABLE_MS = 500; // how long voltage needs to be on target to be considered "stable"
 	const uint16_t V_STABLE_THRESHOLD = 20; // how close voltage needs to be to set point to be considered on target
+	const uint16_t V_MIN = 500; // minimum allowed target voltage
+
 
 	double C0;
 	double C1;

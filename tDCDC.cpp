@@ -116,7 +116,7 @@ void TDCDC::run(){
                 voltage_drop_detected = true;
                 gTChannels.voltage_drop_detected_callback();
             }
-            timer_last_V_off_target = timerHVmeas;  // mark the last time the voltage was not close to the setpoint
+            timer_last_V_off_target = millis();  // mark the last time the voltage was not close to the setpoint
         }
     
         // check if voltage can be considered stable (last time it was off the target is sufficiently long ago)
@@ -129,6 +129,12 @@ void TDCDC::run(){
 
 void TDCDC::set_target_voltage(uint16_t voltage){
     //setpoint = voltage;
+    if (voltage > Vmax){
+        Serial.print("[WARN]: Target exceeds maximum voltage. Setting to maximum instead: ");
+        Serial.print(Vmax);
+        Serial.println(" V");
+        voltage = Vmax;
+    }
     setpoint_save = voltage;
     reset_stabilization_timer();
 }
@@ -154,7 +160,12 @@ void TDCDC::measure_HV_voltage_fast(float alpha) {
 //    return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
     return_V = y * 5.0 / 1023.0 * 1000; // conversion 10bit ADC => voltage 0..5V, assuming voltage divider ratio is 1:1000
     return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
-    last_Vnow = return_V; // store measured value
+
+//    if(setpoint == 0 && return_V < 100)
+    if(return_V < 100)
+      last_Vnow = 0;  // make sure it gets set to 0 and never ends up negative and causes overflow
+    else
+      last_Vnow = return_V; // store measured value
 }
 
 void TDCDC::measure_current_fast(float alpha) {
@@ -233,10 +244,7 @@ double TDCDC::get_Kd() {
     return Kd;
 }
 uint16_t TDCDC::get_last_Vnow() {
-    if(setpoint == 0 && last_Vnow < 100)
-      return 0;
-    else
-      return last_Vnow;
+    return last_Vnow;
 }
 uint16_t TDCDC::get_last_Inow() {
     return last_Inow;

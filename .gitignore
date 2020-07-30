@@ -4,4 +4,6 @@ old/
 __vm/
 *.vcxproj*
 *.sln
-tools/calibration/*
+tools/calibration/venv/
+tools/calibration/.idea/
+tools/calibration/__pycache__/

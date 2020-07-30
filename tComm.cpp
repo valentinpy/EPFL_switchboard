@@ -55,8 +55,12 @@ void TComm::setup(){
   sCmd.addCommand("SRelOn", this->SRelOn);
   sCmd.addCommand("SRelOff", this->SRelOff);
   sCmd.addCommand("SRelAuto", this->SRelAuto);
+  //sCmd.addCommand("SRelDisconnect", this->SRelAutoDisconnect);
+  //sCmd.addCommand("SRelAutoReconnect", this->SRelAutoReconnect);
+  //sCmd.addCommand("SRelAutoReset", this->SRelAutoReset);
   sCmd.addCommand("QRelState", this->QRelState);
   sCmd.addCommand("QTestingShort", this->QTestingShort);
+  sCmd.addCommand("QShortDetected", this->QShortDetected);
   sCmd.addCommand("SOC", this->SOC);
   sCmd.addCommand("SOCF", this->SOCF);
   sCmd.addCommand("QOC", this->QOC);
@@ -225,42 +229,91 @@ void TComm::QKd(){
     Serial.println(val);
 }
 void TComm::SRelOn(){
-    gTChannels.allOn();
-    gTChannels.setCurrentMode(TChannels::AllOn);
+    char* relays_to_use_raw = sCmd.next();
+    bool relays_to_use[6] = { 1,1,1,1,1,1 }; // default to 1 so that all relays turn on if nothing is specified
+    for (uint8_t i = 0; i < 6; i++) {
+        if ((relays_to_use_raw[i] == '0') || (relays_to_use_raw[i]) == '1') {
+            relays_to_use[i] = relays_to_use_raw[i] - '0';
+        }
+        else {
+            break;
+        }
+    }
+    gTChannels.auto_disconnect_enabled = false;
+    gTChannels.auto_reconnect_enabled = false;
+    gTChannels.setAllRelays(relays_to_use);
     gTChannels.printChannelsStatus();
 
 }
 void TComm::SRelOff(){
+    gTChannels.auto_disconnect_enabled = false;
+    gTChannels.auto_reconnect_enabled = false;
     gTChannels.allOff();
-    gTChannels.setCurrentMode(TChannels::AllOff);
     gTChannels.printChannelsStatus();
 }
 void TComm::SRelAuto(){
     uint16_t retry_duration_s = sCmd.parseLongArg();
+    bool enable_reconnect = sCmd.parseLongArg();
     char *relays_to_use_raw = sCmd.next();
-    bool relays_to_use[6] = {1,1,1,1,1,1};
+    bool relays_to_use[6] = { 1,1,1,1,1,1 }; // default to 1 so that all relays turn on if nothing is specified
     for (uint8_t i = 0; i < 6; i++) {
-            if ((relays_to_use_raw[i] == '0') || (relays_to_use_raw[i]) == '1') {
-                relays_to_use[i] = relays_to_use_raw[i] - '0';
-            }
-            else {
-                break;
-            }
+        if ((relays_to_use_raw[i] == '0') || (relays_to_use_raw[i]) == '1') {
+            relays_to_use[i] = relays_to_use_raw[i] - '0';
+        }
+        else {
+            break;
+        }
     }
-    Serial.print("[INFO]: Activation auto mode. Retry: ");
+    Serial.print("[INFO]: Activating auto mode. Retry: ");
     Serial.print(retry_duration_s);
     Serial.print("[s]; ");
-    for (int i = 0;i < 6;i++) {
-        Serial.print(relays_to_use[i]);
+    Serial.print("Auto reconnect: ");
+    Serial.print(enable_reconnect);
+    Serial.print("; ");
+    Serial.print("Channels: ");
+    Serial.print(relays_to_use[0]);
+    for (int i = 1; i < 6; i++) {
         Serial.print(",");
+        Serial.print(relays_to_use[i]);
     }
     Serial.println("");
-    gTChannels.setCurrentMode(TChannels::AutoMode);
-    gTChannels.autoMode(retry_duration_s, relays_to_use);
+
+    gTChannels.autoMode(retry_duration_s, enable_reconnect, relays_to_use);
 
 }
+
+void TComm::SRelAutoDisconnect()
+{
+    bool enabled = sCmd.parseLongArg();
+    gTChannels.auto_disconnect_enabled = enabled;
+    if (!enabled) {
+        gTChannels.auto_reconnect_enabled = enabled; // can't do auto reconnect without auto disconnect
+        gTChannels.reset(); // if turning auto reconnect off, we need should reset to restore user defined state and stop any ongoing testing
+    }
+}
+
+void TComm::SRelAutoReconnect()
+{
+    bool enabled = sCmd.parseLongArg();
+    gTChannels.auto_reconnect_enabled = enabled;
+    if (!enabled) {
+        gTChannels.reset(); // if turning auto reconnect off, we need should reset to restore user defined state and stop any ongoing testing
+    }
+}
+
+void TComm::SRelAutoReset()
+{
+    uint16_t delay = sCmd.parseLongArg();
+    gTChannels.setAutoRestartDelay(delay);
+}
+
 void TComm::QRelState(){
     gTChannels.printChannelsStatus();
+}
+
+void TComm::QShortDetected()
+{
+    Serial.println(gTChannels.isShortDetected());
 }
 
 void TComm::QTestingShort() {
@@ -361,9 +414,8 @@ void TComm::vpy() {
         gTDCDC.set_target_voltage(2000);
         gTHB.stateChange(1);
         gTOC.stateChange(1);
-        gTChannels.setCurrentMode(TChannels::AutoMode);
-        bool tmp[] = { 1,1,1,1,1,1 };
-        gTChannels.autoMode(0, tmp);
+        bool tmp[] = { 1,0,0,1,0,1 };
+        gTChannels.autoMode(0, 1, tmp);
         break;
     default:
         Serial.println("Err VPY");

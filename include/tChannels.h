@@ -4,7 +4,7 @@
 class TChannels
 {
 public:
-	enum autoModeEnum { AllOff, AllOn, Manual, AutoMode };
+	enum autoModeEnum { Manual, AutoDisconnect, AutoReconnect };
 
 	TChannels() = default;
 	void setup();
@@ -12,14 +12,20 @@ public:
 
 	void allOn();
 	void allOff();
-	bool set1(unsigned int channel, bool state);
+	bool setRelay(unsigned int channel, bool state);
+	bool setAllRelays(bool* state);
+	void setAutoRestartDelay(int16_t delay);
+	void reset();
 
-	void autoMode(int aNewAutoRestartDelay_s, bool* aListChannelsUsed);
+	void autoMode(int aNewAutoRestartDelay_s, bool reconnect_enabled, bool* aListChannelsUsed);
 	void getChannelsStatus(bool* retVal);
 	void printChannelsStatus();
-	void setCurrentMode(autoModeEnum newCurrentMode);
-	int8_t isTestingShort();
+	bool isTestingShort();
+	bool isShortDetected();
 	void voltage_drop_detected_callback();
+
+	bool auto_disconnect_enabled;
+	bool auto_reconnect_enabled;
 
 private:
 	const int Rel0_PIN = 23;
@@ -32,30 +38,26 @@ private:
 	const int Rel_pin[6] = { Rel0_PIN, Rel1_PIN, Rel2_PIN, Rel3_PIN, Rel4_PIN, Rel5_PIN }; // digital pin used to control relay 0-5
 
 	int Rel_status[6] = {};
-	bool Rel_automode_enabled[6] = {};
+	bool Rel_enabled[6] = {};
 	bool RelState_testing[6] = { 0,0,0,0,0,0 };
 	const byte NBREL = 6;
-
-	autoModeEnum currentMode;
-	uint8_t testingShort;
-	
-	bool voltage_drop_detected = false;
-
+	bool set1(unsigned int channel, bool state);
 	bool set6(bool* state);
 
-
-	bool relay_state_machine();
+	bool short_detected;
+	bool voltage_drop_detected = false;
+	
 	int16_t autoRestartDelay_s;
 	enum autoModeStateEnum {
-		AUTOSTATE_OFF,
-		AUTOSTATE_RST,
-		AUTOSTATE_NORMAL,
-		AUTOSTATE_CONFIRMED_SHORT_INIT,
-		AUTOSTATE_CONFIRMED_SHORT_WAITING,
-		AUTOSTATE_CONFIRMED_SHORT_TESTING,
-		AUTOSTATE_CONFIRMED_SHORT_TESTING_DONE
+		STATE_RST,
+		STATE_NORMAL,
+		STATE_SHORT_DETECTED,
+		STATE_SHORT_WAITING,
+		STATE_SHORT_TESTING,
+		STATE_SHORT_TESTING_DONE,
+		STATE_ERR
 	};
-	autoModeStateEnum autoModeState;
+	autoModeStateEnum state;
 
 	uint32_t timer_relretry;
 	uint32_t timer1;

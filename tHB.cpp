@@ -202,27 +202,27 @@ bool THB::long_shortCircuitProtection() {
 
 
 	// detect begin of short circuit
-//	uint16_t Vnow = gTDCDC.get_last_Vnow();
-//	uint16_t Vset = gTDCDC.get_Vset();
-//
-//	if ((Vnow < (Vset / 2)) && (Vset > 50) && (gTDCDC.get_enable_switch())) { // low voltage
-//		timer_lscp_1 = 0;
-//		if (timer_lscp_2 == 0) { // Low voltage first time
-//			timer_lscp_2 = millis();
-//		}
-//		else if ((timer_lscp_2 != 0) && (millis() - timer_lscp_2) > LSCP_MAX_TIME_MS) {
-//			timer_lscp_2 = 0;
-//			return true;
-//		}
-//	}
-//	else { // not low voltage anymore for 500ms
-//		if (timer_lscp_1 == 0) {
-//			timer_lscp_1 = millis();
-//		}
-//		if ((millis() - timer_lscp_1) > LSCP_CANCEL_TIME_MS) {
-//			timer_lscp_2 = 0;
-//			timer_lscp_1 = 0;
-//		}
-//	}
+	uint16_t Vnow = gTDCDC.get_last_Vnow();
+	uint16_t Vset = gTDCDC.get_Vset();
+
+	if ((Vnow < (Vset / 2)) && (Vset > 50) && (gTDCDC.get_enable_switch())) { // low voltage
+		timer_lscp_1 = 0;
+		if (timer_lscp_2 == 0) { // Low voltage first time
+			timer_lscp_2 = millis();
+		}
+		else if ((timer_lscp_2 != 0) && (millis() - timer_lscp_2) > LSCP_MAX_TIME_MS) {
+			timer_lscp_2 = 0;
+			return true;
+		}
+	}
+	else { // not low voltage anymore for 500ms
+		if (timer_lscp_1 == 0) {
+			timer_lscp_1 = millis();
+		}
+		if ((millis() - timer_lscp_1) > LSCP_CANCEL_TIME_MS) {
+			timer_lscp_2 = 0;
+			timer_lscp_1 = 0;
+		}
+	}
 	return false;
 }

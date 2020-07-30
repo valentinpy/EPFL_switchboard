@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="19bdddcf-fecb-4df3-9122-b4826ccb7c52" name="Default Changelist" comment="" />
+    <list default="true" id="19bdddcf-fecb-4df3-9122-b4826ccb7c52" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/../../tComm.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../tComm.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../tDCDC.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../tDCDC.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/060_calibration.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/060_calibration.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main_switchboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_switchboard.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -25,7 +32,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$USER_HOME$/Documents/NERD/Firmware v2/Switchboard/tools/calibration" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
@@ -129,6 +136,16 @@
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
   </component>
+  <component name="WindowStateProjectService">
+    <state x="715" y="-985" key="FileChooserDialogImpl" timestamp="1595839784224">
+      <screen x="-345" y="-1440" width="2560" height="1400" />
+    </state>
+    <state x="715" y="-985" key="FileChooserDialogImpl/0.0.1920.1040/-345.-1440.2560.1400@-345.-1440.2560.1400" timestamp="1595839784224" />
+    <state x="779" y="-1113" key="SettingsEditor" timestamp="1595839620089">
+      <screen x="-345" y="-1440" width="2560" height="1400" />
+    </state>
+    <state x="779" y="-1113" key="SettingsEditor/0.0.1920.1040/-345.-1440.2560.1400@-345.-1440.2560.1400" timestamp="1595839620089" />
+  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
@@ -136,16 +153,6 @@
           <url>file://$PROJECT_DIR$/main_probe.py</url>
           <line>49</line>
           <option name="timeStamp" value="6" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main_switchboard.py</url>
-          <line>87</line>
-          <option name="timeStamp" value="8" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main_switchboard.py</url>
-          <line>81</line>
-          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
