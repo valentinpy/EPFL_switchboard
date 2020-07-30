@@ -7,3 +7,4 @@ __vm/
 tools/calibration/venv/
 tools/calibration/.idea/
 tools/calibration/__pycache__/
+CppProperties.json
