@@ -1,6 +1,8 @@
 #include "Arduino.h"
 #include "include/tDCDC.h"
 #include "include/tChannels.h"
+#include "include/tOC.h"
+#include "include/tHB.h"
 #include "include/hPID_v1.h"
 #include "include/mEEPROM.h"
 #include "EEPROM.h"
@@ -14,6 +16,8 @@ static const uint8_t DCDC_CTRL_PIN = 13; // Digital output pin for driving trans
 static const uint8_t DCDC_CURRENT_FB_PIN = 20; // Voltage representing DCDC input current, gain: 2 V/A -> 1 V = 500 mA
 extern HDBG gHDBG;
 extern TChannels gTChannels;
+extern TOC gTOC;
+extern THB gTHB;
 
 TDCDC::TDCDC() : HVPS_PID(&input, &output, &setpoint, 0.02, 0.0, 0.0, DIRECT) {}
 
@@ -70,11 +74,8 @@ void TDCDC::run(){
     // See tDCDC.h
 
     // check kill switch
-    if (millis() - timer_enable_switch >= KILL_SWITCH_PERIOD_MS) {  
-        timer_enable_switch = millis();
-        // TODO: can't we do this with a digital read? would be much faster, no?
-        enable_switch = get_filtered_enable_switch(0.02) > 200 ? 1 : 0;
-    }
+    enable_switch = read_enable_switch();
+
     if (!enable_switch) {
         setpoint = 0.0; // if disabled, PID target => 0
     }
@@ -85,10 +86,8 @@ void TDCDC::run(){
     // measure voltage
     if (millis() - timerHVmeas >= PERIOD_HVMEAS_MS) {
         timerHVmeas = millis();
-        measure_HV_voltage_fast(HVMEAS_ALPHA);
+        last_Vnow = measure_HV_voltage_fast(HVMEAS_ALPHA);
     
-        uint16_t vnow = get_last_Vnow(); // use getter to apply low voltage threshold
-
         // now that we have a new voltage measurement, let's update the PID
         // Run PID: frequency is internally limited
         // HVPS_PID.Compute() returns true if a new value is computed
@@ -108,22 +107,42 @@ void TDCDC::run(){
         }
 
         // check if voltage is stable
-        if (abs(vnow - setpoint) > V_STABLE_THRESHOLD) { // measured voltage is not in range
-          
-            if(voltage_stable && vnow < setpoint) { // voltage is below target now and it was previously stable --> voltage just dropped
+        if (abs(last_Vnow - setpoint) > V_STABLE_THRESHOLD) { // measured voltage is not in range
+            //Serial.print("setpoint: ");
+            //Serial.print(setpoint);
+            //Serial.print("; last_Vnow: ");
+            //Serial.println(last_Vnow);
+
+            if(voltage_stable && last_Vnow < setpoint && enable_switch) { // voltage is below target now and it was previously stable --> voltage just dropped
                 // immediately disconnect and start testing!
-                Serial.println("[INFO]: Voltage drop detected!");
+                Serial.println("[INFO]: Voltage drop detected! [fast]");
                 voltage_drop_detected = true;
                 gTChannels.voltage_drop_detected_callback();
             }
             timer_last_V_off_target = millis();  // mark the last time the voltage was not close to the setpoint
         }
-    
+        
         // check if voltage can be considered stable (last time it was off the target is sufficiently long ago)
-        voltage_stable = millis() - timer_last_V_off_target > PERIOD_V_STABLE_MS;
+        if (setpoint > 0) {
+            voltage_stable = millis() - timer_last_V_off_target > PERIOD_V_STABLE_MS;
+        }
+        else {
+            voltage_stable = false; // can't be considered stable if output is off
+        }
+    
+        
+        if (long_shortCircuitProtection()) { // voltage has been low for a long time --> shut everything down to avoid damage to DCDC!
+            Serial.println("[WARN]: Long voltage drop detected. Shutting down!");
+            // DCDC off
+            set_target_voltage(0);
+            // set HB to GND
+            gTHB.setOperationMode(THB::OPMANUAL);
+            gTHB.stateChange(0);
+            // set OC to GND
+            gTOC.setOperationMode(TOC::OPMANUAL);
+            gTOC.stateChange(0);
+        }
 
-        // measure current
-        measure_current_fast(CURMEAS_ALPHA);
     }
 }
 
@@ -143,7 +162,7 @@ bool TDCDC::restore_voltage() {
     target_voltage_modifier = 1.0;  // reset modifier to 1 (apply full target voltage)
 }
 
-void TDCDC::measure_HV_voltage_fast(float alpha) {
+uint16_t TDCDC::measure_HV_voltage_fast(float alpha) {
     float x;
     static float y=0;
     float return_V;
@@ -152,25 +171,19 @@ void TDCDC::measure_HV_voltage_fast(float alpha) {
     
     // Exponential smoothing:
     // https://en.wikipedia.org/wiki/Exponential_smoothing
-
     y = alpha * x + (1.0 - alpha) * y;
     
-
-
     // calibration factor
-    // TODO: Why does the conversion depend on Vmax? surely, this should be Vin (5V) instead!
-//    return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000
     return_V = y * 5.0 / 1023.0 * 1000; // conversion 10bit ADC => voltage 0..5V, assuming voltage divider ratio is 1:1000
     return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
 
-//    if(setpoint == 0 && return_V < 100)
     if(return_V < 100)
-      last_Vnow = 0;  // make sure it gets set to 0 and never ends up negative and causes overflow
-    else
-      last_Vnow = return_V; // store measured value
+        return_V = 0;  // make sure it gets set to 0 and never ends up negative and causes overflow
+    
+    return return_V;
 }
 
-void TDCDC::measure_current_fast(float alpha) {
+uint16_t TDCDC::measure_current_fast(float alpha) {
     float x;
     static float y=0;
     float v, cur_mA;
@@ -184,19 +197,33 @@ void TDCDC::measure_current_fast(float alpha) {
     // calibration factor
     v = y * 5.0 / 1023.0; // conversion 10bit ADC => voltage (5V = 1023)
     cur_mA = v * 500; // convert measured voltage to current in mA
-    last_Inow = cur_mA; // store measured value
+    return cur_mA; // return measured value
 }
 
-double TDCDC::get_filtered_enable_switch(float alpha) {
-    float x;
-    static float y = 0;
+bool TDCDC::read_enable_switch() {
 
-    // Exponential smoothing:
-    // https://en.wikipedia.org/wiki/Exponential_smoothing
+    bool pin_state = digitalRead(KILL_SWITCH_PIN);
 
-    x = (double)analogRead(KILL_SWITCH_PIN); //TODO: can we do that reading non blocking: we lose at least 100uS!
-    y = alpha * x + (1.0 - alpha) * y;
-    return y;
+    // debounce: only change state if the pin has been in a differnt state for a certain amount of time
+    if (pin_state != enable_switch) { // pin state has changed
+        if (timer_enable_switch == 0) {
+            timer_enable_switch = millis(); // start timer
+        }
+        else if (millis() - timer_enable_switch > KILL_SWITCH_PERIOD_MS) { // pin has been in that state for long enough (finished debouncing)
+            enable_switch = pin_state; // apply new state
+            if (enable_switch)
+                Serial.println("[INFO]: Safety switch off. HV output disabled.");
+            else
+                Serial.println("[INFO]: Safety switch on. HV output enabled.");
+            return pin_state;
+        }
+        return enable_switch; // we're not sure yet of the new state. return old state
+    }
+    else { // state has not changed
+        timer_enable_switch = 0; // disable the timer
+        return enable_switch; // return the current state, since it hasn't changed
+    }
+
 }
 
 void TDCDC::reset_stabilization_timer() {
@@ -249,7 +276,7 @@ uint16_t TDCDC::get_last_Vnow() {
     return last_Vnow;
 }
 uint16_t TDCDC::get_last_Inow() {
-    return last_Inow;
+    return measure_current_fast(1);
 }
 uint16_t TDCDC::get_last_PWM() {
     return last_PWM;
@@ -306,4 +333,45 @@ void TDCDC::set_Ki(double Ki) {
 void TDCDC::set_Kd(double Kd) {
     this->Kd = Kd;
     HVPS_PID.SetTunings(Kp, Ki, Kd);
+}
+
+bool TDCDC::long_shortCircuitProtection() {
+    // This methods compares target voltage and measured voltage
+    // If the measured voltage is too log for a defined time: LSCP_MAX_TIME_MS, the functions return true
+    // To cancel the LSCP_MAX_TIME_MS timer, voltage has to be restored over threshold for at least LSCP_CANCEL_TIME_MS
+    // Method is non blocking, and the called should read return value
+
+    // Return value is true if a long short-circuit has been detected
+
+    // detect begin of short circuit
+    if (last_Vnow < (setpoint * LSCP_VOLTAGE_THRESHOLD_REL)) { // low voltage
+        timer_lscp_VOK = 0; // voltage is not OK. Reset OK timer
+        
+        if (timer_lscp_Vlow == 0) { // Low voltage first time
+            timer_lscp_Vlow = millis();  // start voltage low timer
+            duration_voltage_low = 0;
+        }
+        else { // voltage low timer is running. check for how long...
+            duration_voltage_low = millis() - timer_lscp_Vlow;
+            if (duration_voltage_low > LSCP_MAX_TIME_MS) { // low for too long -> raise alarm!
+                timer_lscp_Vlow = 0;
+                return true; // return true to indicate that there is a short circuit!
+            }
+        }
+    }
+    else { // not low voltage anymore
+        if (timer_lscp_VOK == 0) {
+            timer_lscp_VOK = millis();  // start voltage OK timer
+        }
+        if ((millis() - timer_lscp_VOK) > LSCP_CANCEL_TIME_MS) {  // voltage has been OK for long enough
+            timer_lscp_Vlow = 0; // we can reset the voltage low timer
+            duration_voltage_low = 0;
+        }
+    }
+    return false;
+}
+
+uint32_t TDCDC::get_duration_voltage_low()
+{
+    return duration_voltage_low;
 }

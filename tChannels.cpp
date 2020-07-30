@@ -201,10 +201,11 @@ void TChannels::run() {
 				state = STATE_NORMAL;
 			}
 
-			if (((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS))) { //&& (Vset > 50) 
+			//if (((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS))) { // don't need to check the actual voltage anymore. tDCDC does that now
+			if (gTDCDC.get_duration_voltage_low() >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS) {
+				Serial.println("[INFO]: Voltage drop detected! [slow]");
 				// Short circuit confirmed
 				// Go to confirmed short circuit init case
-				voltage_drop_detected = false; // reset flag (in case it was set)
 				timer1 = 0;
 				state = STATE_SHORT_DETECTED;
 			}
@@ -218,12 +219,12 @@ void TChannels::run() {
 
 	if (state == STATE_SHORT_DETECTED) {
 		// decrease voltage, wait, and disconnect everything, and cancel Switching
-		Serial.println("[INFO]: Short circuit detected!");
 		// reset temporary relay states
 		for (int i = 0; i < NBREL; i++) {
 			RelState_testing[i] = 0;
 		}
 		set6(RelState_testing); // disconnect all relays
+		Serial.println("[INFO]: All channels disconnected!");
 
 		short_detected = 1;
 
@@ -236,6 +237,8 @@ void TChannels::run() {
 			timer1 = millis();  // start timer for next state
 			// go to next state
 			state = STATE_SHORT_WAITING;
+			Serial.println("[INFO]: Testing for short circuits...");
+
 		}
 		else {
 			state = STATE_NORMAL; // keep relays off, otherwise pretend everything is normal
@@ -251,8 +254,8 @@ void TChannels::run() {
 			while (shortcircuit_finder_index < NBREL && !Rel_enabled[shortcircuit_finder_index])
 				shortcircuit_finder_index++; // keep increasing if the current channel is not enabled, so it will be skipped
 
-			Serial.print("[INFO]: Relays off, voltage stabilized -> switching on channel ");
-			Serial.println(shortcircuit_finder_index);
+			//Serial.print("[INFO]: Relays off, voltage stabilized -> switching on channel ");
+			//Serial.println(shortcircuit_finder_index);
 
 			if (shortcircuit_finder_index < NBREL) {
 				// next channel index is in range, so we're not done testing yet
@@ -285,16 +288,16 @@ void TChannels::run() {
 
 			RelState_testing[shortcircuit_finder_index] = v_stable; // store whether or not this channel was fine
 
-			if (v_stable) {
-				Serial.print("[INFO]: Voltage stabilized, channel ");
-				Serial.print(shortcircuit_finder_index);
-				Serial.println(" is OK");
-			}
-			else {
-				Serial.print("[INFO]: Voltage did not stabilize, channel ");
-				Serial.print(shortcircuit_finder_index);
-				Serial.println(" is faulty");
-			}
+			//if (v_stable) {
+			//	Serial.print("[INFO]: Voltage stabilized, channel ");
+			//	Serial.print(shortcircuit_finder_index);
+			//	Serial.println(" is OK");
+			//}
+			//else {
+			//	Serial.print("[INFO]: Voltage did not stabilize, channel ");
+			//	Serial.print(shortcircuit_finder_index);
+			//	Serial.println(" is faulty");
+			//}
 			set1(shortcircuit_finder_index, false); // turn this channel off again
 
 
@@ -314,11 +317,12 @@ void TChannels::run() {
 
 		set6(RelState_testing);
 
-		Serial.print("[INFO] finished: ");
+		Serial.print("[INFO]: Test finished. Reconnecting channels: ");
 		printChannelsStatus();
 
 		// test finished so we can restore the proper voltage
 		gTDCDC.restore_voltage();
+		gTOC.ac_paused = false;
 		timer1 = 0;  // reset timer so we don't immediatly detect another short circuit while the voltage is restored
 
 		short_detected = false; // detected short has been handled

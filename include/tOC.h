@@ -17,7 +17,7 @@ public:
 	uint16_t getMaxFrequencyHz();
 
 	void setOperationMode(operationModeEnum newOpMode, double newFrequency=0);
-	bool ac_paused = false;  // flag to indicate if AC should be paused (during testing)
+	bool ac_paused = false;  // flag to indicate if AC should be paused (for short circuit testing)
 	
 	
 private:

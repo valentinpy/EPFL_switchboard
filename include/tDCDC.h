@@ -29,7 +29,7 @@ public:
 	uint16_t get_last_Vnow();
 	uint16_t get_last_PWM();
 	uint16_t get_last_Inow();
-	uint16_t get_Vset();
+	uint16_t get_Vset();  // the setpoint specified by the user
 	uint16_t get_Vmax();
 	int16_t get_Verror_percent();
 
@@ -47,6 +47,9 @@ public:
 	void set_Kp(double Kp);
 	void set_Ki(double Ki);
 	void set_Kd(double Kd);
+
+	bool long_shortCircuitProtection();
+	uint32_t get_duration_voltage_low();
 
 	void set_target_voltage(uint16_t  voltage);
 	void reset_stabilization_timer();
@@ -77,14 +80,13 @@ private:
 	double C2;
 	uint16_t last_Vnow;
 	uint16_t last_PWM;
-	uint16_t last_Inow;
 	uint32_t timer_last_V_off_target;
 	bool voltage_stable = false;
 	bool voltage_drop_detected = false;
 	
-	void measure_HV_voltage_fast(float alpha);
-	double get_filtered_enable_switch(float alpha);
-	void measure_current_fast(float alpha);
+	uint16_t measure_HV_voltage_fast(float alpha);
+	bool read_enable_switch();
+	uint16_t measure_current_fast(float alpha);
 
 
 	//------------------------------------------------------
@@ -108,9 +110,20 @@ private:
 	// Kill switch
 	//------------------------------------------------------
 	const uint8_t KILL_SWITCH_PIN = 19; //A1
-	const uint32_t KILL_SWITCH_PERIOD_MS = 10;
+	const uint32_t KILL_SWITCH_PERIOD_MS = 2; // debounce delay for the kill switch
 	bool enable_switch;
 	uint32_t timer_enable_switch; //timer for high voltage feedback filtering
+
+	//------------------------------------------------------
+	// Long short circuit protection
+	//------------------------------------------------------
+	uint32_t timer_lscp_VOK;
+	uint32_t timer_lscp_Vlow;
+	uint16_t duration_voltage_low;
+	const float LSCP_VOLTAGE_THRESHOLD_REL = 0.5; // voltage threshold (as a proportion og Vset) under which the short protection triggers
+	const uint16_t LSCP_MAX_TIME_MS = 5000;  // duration of the short protection countdown before DCDC is switched off for safety
+	const uint16_t LSCP_CANCEL_TIME_MS = 500;  // minimum time the voltage must be in range to reset the short protection countdown
+
 
 	//------------------------------------------------------
 	// Misc.

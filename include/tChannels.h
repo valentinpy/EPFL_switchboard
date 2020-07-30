@@ -45,7 +45,6 @@ private:
 	bool set6(bool* state);
 
 	bool short_detected;
-	bool voltage_drop_detected = false;
 	
 	int16_t autoRestartDelay_s;
 	enum autoModeStateEnum {

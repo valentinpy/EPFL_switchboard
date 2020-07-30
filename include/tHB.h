@@ -16,6 +16,8 @@ public:
 	uint8_t getOperationMode();
 	uint16_t getMaxFrequencyHz();
 
+	bool ac_paused = false;  // flag to indicate if AC should be paused (for short circuit testing)
+
 	void setOperationMode(operationModeEnum newOpMode, double newFrequency = 0);
 	
 
@@ -61,11 +63,5 @@ private:
 	// switching state machine
 	void internalRun(bool stateChange, stateEnum newState);
 
-	bool long_shortCircuitProtection();
-	uint32_t timer_lscp_1;
-	uint32_t timer_lscp_2;
-	const uint16_t LSCP_CANCEL_TIME_MS = 500;
-	const uint16_t LSCP_MAX_TIME_MS = 5000;
-	// threshold and minimum voltage are stil hardcoded in THB::long_shortCircuitProtection()
 };
 #endif

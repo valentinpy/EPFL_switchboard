@@ -39,12 +39,19 @@ void TOC::run() {
 			internalRun(false, DONTCARE);
 		}
 	}
-
+	else if (ac_paused) {
+		if (hin != 1 || lin != 0) {
+			internalRun(true, HV); // make sure that we're paused in HV state, otherwise the short circuit test won't be able to detect anything
+		}
+		else {
+			internalRun(false, DONTCARE);
+		}
+	}
 	// Else, we handle that according to frequency
 	// TODO: This is "soft PWM", should use hardware counter compare
 	else {
 		//Serial.println(period_us);
-		if (micros() - timer_freq_us > period_us && !ac_paused) {
+		if (micros() - timer_freq_us > period_us) {
 			timer_freq_us = micros();
 			//Serial.println("YOLO");
 			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
@@ -89,6 +96,8 @@ void TOC::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
 		newStateS.stateChanged = true;
 	}
 	frequency_toggler = 0; // init "toggler", variable used to switch from low to high,... in frequency mode
+
+	gTDCDC.reset_stabilization_timer();
 }
 
 
@@ -131,11 +140,14 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 		if (!lin) {
 			digitalWrite(OC_L_PIN, LOW);
 		}
+
+		if (period_us > 12500) // if frequency is high enough, we don't need to reset because the voltage remains stable
+			gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
 		//start a timer to wait (non blocking) for a few milliseconds to be sure relays switched
 		timer = millis();
 		//netxt state: reconnect what has to be reconnected
 		stateMachine = reconnect;
-		break;
+		// break; let's not break here so we can immediately do the reconnect if delay is 0
 	case reconnect:
 		//wait until delay over
 		if (millis() - timer >= OC_DELAY_MS) {
@@ -146,6 +158,8 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 			if (lin) {
 				digitalWrite(OC_L_PIN, HIGH);
 			}
+			if (period_us > 12500) // if frequency is high enough, we don't need to reset because the voltage remains stable
+				gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
 			//finished, go back to standby
 			stateMachine = standby;
 		}

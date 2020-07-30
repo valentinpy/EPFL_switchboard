@@ -92,8 +92,8 @@ void TComm::debugPrint() {
     Serial.print(gTDCDC.is_voltage_stable()*1000);
     Serial.print(", ");
     Serial.print(gTDCDC.get_last_PWM());
-    Serial.print(", ");
-    Serial.print(gTDCDC.get_last_Inow() * 10);
+    //Serial.print(", ");
+    //Serial.print(gTDCDC.get_last_Inow() * 10);
     Serial.println("");
 }
 
@@ -117,6 +117,9 @@ void TComm::SVset(){
   unsigned int val = (unsigned int) sCmd.parseLongArg();
   Serial.println(val);
   gTDCDC.set_target_voltage(val);
+  if (val > 0 && !gTDCDC.get_enable_switch())
+      Serial.println("[WARN]: Safety switch disabled. Setting output voltage will have no effect.");
+
   //EEPROM.put(MEEPROM::ADR_VSET_2B,val);
   //Serial.println("Saved - requires reboot");
   
