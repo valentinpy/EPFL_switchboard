@@ -155,6 +155,8 @@ void TDCDC::measure_HV_voltage_fast(float alpha) {
 
     y = alpha * x + (1.0 - alpha) * y;
     
+
+
     // calibration factor
     // TODO: Why does the conversion depend on Vmax? surely, this should be Vin (5V) instead!
 //    return_V = y * (float)Vmax / 1024.0; // conversion 10bit ADC => voltage 0..Vmax, assuming voltage divider ratio is 1:1000

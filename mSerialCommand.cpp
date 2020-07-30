@@ -144,14 +144,14 @@ char *mSerialCommand::next() {
 }
 
 long mSerialCommand::parseLongArg() {
-  Serial.println("[WARN]: unsafe method: mSerialCommand::parseLongArg() - must be corrected");
+  //Serial.println("[WARN]: unsafe method: mSerialCommand::parseLongArg() - must be corrected");
   char * arg;
   arg = next();
   return atol(arg);
 }
 
 double mSerialCommand::parseDoubleArg() {
-    Serial.println("[WARN]: unsafe method: mSerialCommand::parseDoubleArg() - must be corrected");
+    //Serial.println("[WARN]: unsafe method: mSerialCommand::parseDoubleArg() - must be corrected");
     char* arg;
     arg = next();
     return atof(arg);

@@ -40,6 +40,7 @@ private:
   static void QRelState();
   static void QShortDetected();
   static void QTestingShort();
+  static void QCurrent();
   static void SOC();
   static void SOCF();
   static void QOC();

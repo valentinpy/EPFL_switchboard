@@ -55,9 +55,6 @@ void TComm::setup(){
   sCmd.addCommand("SRelOn", this->SRelOn);
   sCmd.addCommand("SRelOff", this->SRelOff);
   sCmd.addCommand("SRelAuto", this->SRelAuto);
-  //sCmd.addCommand("SRelDisconnect", this->SRelAutoDisconnect);
-  //sCmd.addCommand("SRelAutoReconnect", this->SRelAutoReconnect);
-  //sCmd.addCommand("SRelAutoReset", this->SRelAutoReset);
   sCmd.addCommand("QRelState", this->QRelState);
   sCmd.addCommand("QTestingShort", this->QTestingShort);
   sCmd.addCommand("QShortDetected", this->QShortDetected);
@@ -318,6 +315,10 @@ void TComm::QShortDetected()
 
 void TComm::QTestingShort() {
     Serial.println(gTChannels.isTestingShort());
+}
+
+void TComm::QCurrent() {
+    Serial.println(gTDCDC.get_last_Inow());
 }
 
 void TComm::SOC(){

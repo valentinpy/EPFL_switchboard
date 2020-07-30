@@ -906,15 +906,17 @@ class DaqMx():
             self.signals_sum += np.array(sig)
             self.averaging_index += 1
         return(self.averaging_index == nmoy, self.signals_sum / self.averaging_index)
-    
+
+
 if __name__ == '__main__':
-    import time
-    mesureAnalogique=DaqMx()
-    sampling_frequency=1000 #Fréquence d'echantillonnage (Hz)
-    t=1 #Temps d'acquisition (s)
-    sample_number=t*sampling_frequency #Nombre d'echantillons par voie
-    # (t,data)=mesureAnalogique.set_analog_measurement(['/Dev1/Ai0','/Dev1/Ai1'],sampling_frequency,sample_number)
-    #Mesure 1 seconde à 1kHz
-#Mesure analogique continue
-    tdata, data = mesureAnalogique.set_analog_measurement(['/Dev1/Ai0'],sampling_frequency,typeEch='fini')
-    print(data)
+    print("not doing anything")
+#     import time
+#     mesureAnalogique=DaqMx()
+#     sampling_frequency=1000 #Fréquence d'echantillonnage (Hz)
+#     t=1 #Temps d'acquisition (s)
+#     sample_number=t*sampling_frequency #Nombre d'echantillons par voie
+#     # (t,data)=mesureAnalogique.set_analog_measurement(['/Dev1/Ai0','/Dev1/Ai1'],sampling_frequency,sample_number)
+#     #Mesure 1 seconde à 1kHz
+# #Mesure analogique continue
+#     tdata, data = mesureAnalogique.set_analog_measurement(['/Dev1/Ai0'],sampling_frequency,typeEch='fini')
+#     print(data)
