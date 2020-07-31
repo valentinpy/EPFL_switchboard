@@ -42,8 +42,9 @@ void TDCDC::setup(){
     EEPROM.get(MEEPROM::ADR_KI_DBL, Ki);
     EEPROM.get(MEEPROM::ADR_KD_DBL, Kd);
 
-    // Max voltage
+    // Min and max voltage
     EEPROM.get(MEEPROM::ADR_VMAX_2B, Vmax);
+    EEPROM.get(MEEPROM::ADR_VMIN_2B, Vmin);
   
     //intial target voltage
 
@@ -146,7 +147,7 @@ void TDCDC::run(){
     }
 }
 
-void TDCDC::set_target_voltage(uint16_t voltage){
+uint16_t TDCDC::set_target_voltage(uint16_t voltage){
     //setpoint = voltage;
     if (voltage > Vmax){
         Serial.print("[WARN]: Target exceeds maximum voltage. Setting to maximum instead: ");
@@ -154,8 +155,13 @@ void TDCDC::set_target_voltage(uint16_t voltage){
         Serial.println(" V");
         voltage = Vmax;
     }
+    if (voltage > 0 && voltage < Vmin) {
+        Serial.println("[WARN]: Target is below minimum voltage. Setting to 0 V instead.");
+        voltage = 0;
+    }
     setpoint_save = voltage;
     reset_stabilization_timer();
+    return voltage;
 }
 
 bool TDCDC::restore_voltage() {
@@ -212,9 +218,9 @@ bool TDCDC::read_enable_switch() {
         else if (millis() - timer_enable_switch > KILL_SWITCH_PERIOD_MS) { // pin has been in that state for long enough (finished debouncing)
             enable_switch = pin_state; // apply new state
             if (enable_switch)
-                Serial.println("[INFO]: Safety switch off. HV output disabled.");
-            else
                 Serial.println("[INFO]: Safety switch on. HV output enabled.");
+            else
+                Serial.println("[INFO]: Safety switch off. HV output disabled.");
             return pin_state;
         }
         return enable_switch; // we're not sure yet of the new state. return old state
@@ -292,6 +298,9 @@ uint16_t TDCDC::get_Vset() {
 }
 uint16_t TDCDC::get_Vmax() {
     return Vmax;
+}
+uint16_t TDCDC::get_Vmin() {
+    return Vmin;
 }
 
 int16_t TDCDC::get_Verror_percent() {

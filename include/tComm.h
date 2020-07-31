@@ -11,6 +11,8 @@ public:
 private:
   static void QVmax();
   static void SVmax();
+  static void QVmin();
+  static void SVmin();
   static void SVset();
   static void QVset();
   static void QVnow();

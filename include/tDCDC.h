@@ -31,6 +31,7 @@ public:
 	uint16_t get_last_Inow();
 	uint16_t get_Vset();  // the setpoint specified by the user
 	uint16_t get_Vmax();
+	uint16_t get_Vmin();
 	int16_t get_Verror_percent();
 
 	bool get_enable_switch();
@@ -51,7 +52,7 @@ public:
 	bool long_shortCircuitProtection();
 	uint32_t get_duration_voltage_low();
 
-	void set_target_voltage(uint16_t  voltage);
+	uint16_t set_target_voltage(uint16_t  voltage);
 	void reset_stabilization_timer();
 
 private:
@@ -72,7 +73,6 @@ private:
 	const float CURMEAS_ALPHA = 0.1; //alpha constant for current feedback filtering (1 = no filtering)
 	const uint32_t PERIOD_V_STABLE_MS = 500; // how long voltage needs to be on target to be considered "stable"
 	const uint16_t V_STABLE_THRESHOLD = 20; // how close voltage needs to be to set point to be considered on target
-	const uint16_t V_MIN = 500; // minimum allowed target voltage
 
 
 	double C0;
@@ -131,5 +131,6 @@ private:
 	uint32_t timer;
 	const uint32_t PERIOD_MS = 1;
 	uint16_t Vmax;
+	uint16_t Vmin;
 };
 #endif

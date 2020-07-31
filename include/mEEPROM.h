@@ -20,8 +20,7 @@ public:
   static const int ADR_VSET_2B=4;       // (2B) setpoint voltage is read from EEPROM at startup only if board in mode 0 (used as stand alone single channel)
   const int ADR_SWMODE_1B=6;     // (1B) switching mode: 0-off, 1-DC, 2-Switching at defined frequency. Only used when switching source (SwSrc) is 0
   static const int ADR_LATCHMODE_1B=7;  // (1B) 0: button acts as a push button: HV is on while button is pressed. 1: button acts as a switch with a latching action (press to change state)
-  // 8 free
-  // 9 free
+  static const int ADR_VMIN_2B = 8;       // (2B) minimum voltage rating of the board
   static const int ADR_C0_DBL=10;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
   static const int ADR_C1_DBL=14;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
   static const int ADR_C2_DBL=18;        // (4B) calibration factor for the voltage reading to account for resistive bridge imprecision. VoutCorr=C2*1E-6*V^2+C1*V+C0 (double values).
