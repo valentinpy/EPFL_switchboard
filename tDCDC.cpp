@@ -307,6 +307,16 @@ uint16_t TDCDC::get_Vmin() {
     return Vmin;
 }
 
+void TDCDC::set_Vmax(uint16_t new_vmax)
+{
+    Vmax = new_vmax;
+}
+
+void TDCDC::set_Vmin(uint16_t new_vmin)
+{
+    Vmin = new_vmin;
+}
+
 int16_t TDCDC::get_Verror_percent() {
     int32_t Vset = (int16_t)setpoint;
     int32_t Vnow = (int16_t)last_Vnow;
