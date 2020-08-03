@@ -32,6 +32,8 @@ public:
 	uint16_t get_Vset();  // the setpoint specified by the user
 	uint16_t get_Vmax();
 	uint16_t get_Vmin();
+	void set_Vmax(uint16_t new_vmax);
+	void set_Vmin(uint16_t new_vmin);
 	int16_t get_Verror_percent();
 
 	bool get_enable_switch();

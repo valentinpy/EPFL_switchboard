@@ -34,13 +34,13 @@ class Switchboard:
     def __init__(self, port=None):
         super().__init__()
         self.logging = logging.getLogger("Switchboard")  # change logger to "Switchboard"
-        # self.logging.setLevel(logging.INFO)  # TODO: decide globally who logs at what level
+        # self.logging.setLevel(logging.INFO)  # keep switchboard from spamming the console
 
         self.port = port
         self.name = ''
         self.firmware_version = 0
-        self.minimum_voltage = 500
-        self.maximum_voltage = 4800
+        self.minimum_voltage = 100
+        self.maximum_voltage = 5000
         self.vset = 0
         self.vnow = 0
         self.oc_freq = 0
@@ -90,7 +90,7 @@ class Switchboard:
     ###########################################################################
 
     @staticmethod
-    def detect(n=0):
+    def detect():
         """Detect available HVPS"""
         logger = logging.getLogger("Switchboard")  # change logger to "Switchboard"
         logger.debug("Detecting available switchboards")
@@ -103,19 +103,18 @@ class Switchboard:
                     sb.open(with_continuous_reading=False)
                     logger.info("Device {} found at port {}".format(sb.name, sb.port))
                     available_switchboards.append(sb)
-                    sb.close()
-
-                    if 0 < n == len(available_switchboards):
-                        break  # already found the desired number of available devices
                 except Exception as ex:
                     logger.debug("Unable to connect to device on port {}. Exception: {}".format(sb.port, ex))
+                finally:
+                    sb.close()  # make sure it's closed properly'
+                    del sb
 
         if not available_switchboards:
             logger.warning("No switchboards found!")
-        elif len(available_switchboards) < n:
-            logger.warning("The requested number of switchboards could not be found!")
         else:
             logger.info("Switchboard detection done. Found {} devices.".format(len(available_switchboards)))
+
+        time.sleep(1)
         return available_switchboards
 
     def _open_connection(self):
@@ -139,6 +138,7 @@ class Switchboard:
                 self.name = self.get_name()
                 self.firmware_version = self.get_firmware_version()
                 self.maximum_voltage = self.get_maximum_voltage()
+                self.minimum_voltage = self.get_minimum_voltage()
 
                 # reset switchboard to make sure we're in a known state
                 self.set_voltage(0)
@@ -164,17 +164,15 @@ class Switchboard:
 
         # figure out which port to connect to
 
-        if port is not None:
-            self.port = port
+        if port is None:  # no port given
+            if self.port is not None:  # check if one was already specified
+                port = self.port
+            else:  # no port specified, so we search for an available port
+                port = 0
 
-        if self.port is None:  # if not defined, autodetect HVPS
-            sb = Switchboard.detect(1)[0]  # get the first switchboard we can find
-            port = sb.port
-            del sb  # get rid of the switchboard object to release the com port
-            self.open(port, with_continuous_reading)
-        elif isinstance(self.port, int):  # specified as index  -> pick from list of available ports
+        if isinstance(port, int):  # specified as index  -> pick from list of available ports
             sbs = Switchboard.detect()  # get the first switchboard we can find
-            if len(sbs) > self.port:
+            if len(sbs) > port:
                 self.port = sbs[port].port
             else:
                 raise ValueError("Invalid switchboard index: {}! This device does not exist!".format(self.port))
@@ -199,7 +197,7 @@ class Switchboard:
             self.stop_voltage_reading(wait=True)
             if self.ser.is_open:
                 with self.serial_com_lock:
-                    self.set_voltage(0, block_while_testing=True)  # set the voltage to 0 as a safety measure
+                    self.set_voltage(0, block_until_set=True)  # set the voltage to 0 as a safety measure
                     self.set_output_off()  # disable OCs and H-bridge
                     self.set_relays_off()
                     self.ser.close()
@@ -313,11 +311,11 @@ class Switchboard:
 
                 if res.startswith("["):  # info/warning/error
                     # TODO: log switchboard messages properly and raise flag in case of warnings
-                    self.logging.debug("Message from Switchboard: {}".format(res))
+                    self.logging.info("Message from Switchboard: {}".format(res))
 
                     res = self._read_hvps()  # read another line
                 elif res.startswith("Err"):
-                    self.logging.warning("Invalid command! Returned error.")
+                    self.logging.warning("Invalid command! Returned error: {}".format(res))
                     res = None
 
         except Exception as ex:
@@ -366,21 +364,17 @@ class Switchboard:
             return None, None  # return None to indicate something is wrong
 
         try:
-            str_state = str_state.replace(":", ";")  # because v1 and v2 have different formats
-            str_state = str_state.split(";")  # separate response for each relay
-            mode = self._cast_int(str_state[0])  # is either the relay mode or just "Relay state" (-> -1)
-            # TODO: use relay mode to detect if switchboard was reset!
-            state = str_state[1].split(",")  # split individual states
+            state = str_state.split(",")  # split individual states
             state = [self._cast_int(r) for r in state if r]  # convert to int if string is not empty
         except Exception as ex:
             self.logging.warning("Failed to parse relay state: {}. Error: {}".format(str_state, ex))
             return None, None  # return None to indicate something is wrong
 
         if len(state) == 6:  # output is only valid if there is a state for each relay
-            return mode, state
+            return state
         else:
             self.logging.warning("Invalid response. Received {} values instead of 6.".format(len(state)))
-            return None, None  # return None to indicate something is wrong
+            return None
 
     ###########################################################################
     # getters and setters #####################################################
@@ -389,6 +383,10 @@ class Switchboard:
     def get_maximum_voltage(self):
         """Query the maximum voltage of the switchboard"""
         return self._cast_int(self.send_query("QVmax"))
+
+    def get_minimum_voltage(self):
+        """Query the minimum voltage of the switchboard"""
+        return self._cast_int(self.send_query("QVmin"))
 
     def set_maximum_voltage(self, vmax):
         """
@@ -400,94 +398,120 @@ class Switchboard:
         res = self._cast_int(self.send_query("SVmax {:.0f}".format(vmax)))
         return res == vmax
 
+    def set_minimum_voltage(self, vmin):
+        """
+        Set the minimum voltage of the switchboard. Will be saved to EEPROM.
+        :param vmin: The maximum voltage
+        :return: True, if the voltage was set correctly
+        """
+        self.minimum_voltage = vmin  # update internal model
+        res = self._cast_int(self.send_query("SVmin {:.0f}".format(vmin)))
+        return res == vmin
+
     def get_voltage_setpoint(self):
-        """Query the voltage setpoint of the switchboard"""
+        """Query the voltage set point of the switchboard"""
         return self._cast_int(self.send_query("QVset"))
 
-    def set_voltage(self, voltage, block_while_testing=False, block_until_reached=False):  # sets the output voltage
+    def set_voltage(self, target_voltage, block_until_set=False, block_until_reached=False):  # sets the output voltage
         """
         Sets the output voltage.
         Checks if voltage can be set or if switchboard is currently testing for a short circuit
-        :param voltage: The desired output voltage
-        :param block_while_testing: Flag to indicate if the function should block until the voltage can be set.
+        :param target_voltage: The desired output voltage
+        :param block_until_set: Flag to indicate if the function should block until the voltage has been set.
         The voltage set point cannot be changed while the switchboard is testing for short circuits.
-        Set this to True, if you want the function to block until the switchboard has finished testing (if it was).
+        Set this to True, if you want the function to block until the switchboard has finished testing (if it was)
+        and has confirmed that the set point has been updated to the target value.
         If false, the function may return without having set the voltage. Check response from switchboard!
         :param block_until_reached: Flag to indicate if the function should block until the measured voltage matches the
         voltage set point (with a 10V margin). If the set point is not reached within 3s, a TimeoutError is raised.
-        :return: True if the voltage was set successfuly, false if the switchboard was unable to set the voltage because
+        :return: True if the voltage was set successfully, false if the switchboard was unable to set the voltage because
         it was busy testing for a short circuit or some other error occurred. If 'block_if_testing' is True,
         a False return value indicates an unexpected error.
         """
 
         if block_until_reached:
-            block_while_testing = True  # it can't reach if it's not set successfully
+            block_until_set = True  # it can't reach if it's not set successfully
 
         # check that specified voltage is within the allowed range #######################################
 
-        if voltage != 0 and voltage < self.minimum_voltage:
+        if target_voltage != 0 and target_voltage < self.minimum_voltage:
             msg = "Specified voltage ({}) is below the allowed minimum ({}). Setting voltage to 0!"
-            self.logging.warning(msg.format(voltage, self.minimum_voltage))
-            voltage = 0
+            self.logging.warning(msg.format(target_voltage, self.minimum_voltage))
+            target_voltage = 0
 
-        if voltage > self.maximum_voltage:
+        if target_voltage > self.maximum_voltage:
             msg = "Specified voltage ({}) is above the allowed maximum ({}). Setting voltage to {}}!"
-            self.logging.warning(msg.format(voltage, self.maximum_voltage, self.maximum_voltage))
-            voltage = self.maximum_voltage
+            self.logging.warning(msg.format(target_voltage, self.maximum_voltage, self.maximum_voltage))
+            target_voltage = self.maximum_voltage
 
-        # make sure that the new voltage set point was accepted (it won't be while it's testing) ###############
+        # set target voltage and make sure that the new voltage set point was accepted ###############
 
-        if block_while_testing:
+        self.vset = target_voltage  # update internal model
+        current_setpoint = -1
+        while current_setpoint != target_voltage:
+            res = self._cast_int(self.send_query("SVset {:.0f}".format(target_voltage)))
+            self.logging.info("Voltage set to {} V".format(target_voltage))
+            self.logging.debug("Previous target {} V. Response: {}".format(current_setpoint, res))
+            if not block_until_set:  # don't wait, return immediately
+                return res == target_voltage
+
             if self.is_testing():
-                self.logging.debug("Switchboard is busy testing for shorts. Waiting to set voltage...")
+                self.logging.info("Switchboard is busy testing for shorts. Waiting to set voltage...")
             while self.is_testing():
                 time.sleep(0.1)
 
-        self.vset = voltage  # update internal model
-        res = self._cast_int(self.send_query("SVset {:.0f}".format(voltage)))
+            current_setpoint = self.get_voltage_setpoint()
 
-        if not block_until_reached:  # don't wait, return immediately
-            return res == voltage
+        if not block_until_reached:  # don't wait until reached
+            return True  # return True since we waited until we have received confirmation
 
-        timeout = 5  # if voltage has not reached its set point in 5 s, something must be wrong!
+        timeout = 10  # if voltage has not reached its set point in 10 s, something is definitely wrong!
         start = time.perf_counter()
         elapsed = 0
-        while abs(voltage - self.get_current_voltage()) > 50:
+        while abs(target_voltage - self.get_current_voltage()) > 50:
             if elapsed > timeout:
-                msg = "Voltage has not reached the set point after 5 seconds! Please check the HVPS!"
-                raise TimeoutError(msg)
+                msg = "Voltage has not reached the set point after {} seconds! Voltage was set to 0!".format(timeout)
+                self.logging.warning(msg)
+                self.set_voltage(0)  # close explicitly because somehow it doesn't seem to get called during shutdown
+                return False
+                # raise TimeoutError(msg)
             if elapsed == 0:  # only write message once
-                self.logging.debug("Waiting for measured output voltage to reach the set point...")
+                self.logging.info("Waiting for measured output voltage to reach the set point...")
             time.sleep(0.05)
-            while self.is_testing():
-                self.logging.debug("Switchboard is testing for shorts...")
-                time.sleep(0.5)
+            if self.is_testing():
+                self.logging.info("Switchboard is testing for shorts...")
+                while self.is_testing():  # wait until test is over
+                    time.sleep(0.5)
                 start = time.perf_counter()  # if SB is busy checking for shorts, don't start counting timeout
 
             elapsed = time.perf_counter() - start
 
         return True  # if we reached here, it must have been set correctly
 
-    def set_voltage_no_overshoot(self, voltage):
+    def set_voltage_no_overshoot(self, target_voltage):
         """
         Sets the output voltage to the specified value, but does so more slowly in several steps to ensure that there
         is no voltage overshoot. This method blocks until the desired voltage has been reached.
-        :param voltage: The desired output voltage, in Volts.
+        :param target_voltage: The desired output voltage, in Volts.
         :return: True or False to indicate if the voltage was set correctly.
         """
         prev_v = self.get_current_voltage(True)
-        dv = voltage - prev_v
-        if dv > 100 and voltage > self.minimum_voltage:  # if increasing (and by more than a few volts), do it slowly
-            self.set_voltage(round(prev_v + dv * 0.7), block_until_reached=True)
-            self.set_voltage(round(prev_v + dv * 0.9), block_until_reached=True)
-        return self.set_voltage(voltage, block_until_reached=True)
+        dv = target_voltage - prev_v
+        if dv > 100:  # if increasing by more than a few volts, do it slowly
+            for voltage_fraction in [0.7, 0.9]:  # multiple steps up to 1
+                temp_target = round(prev_v + dv * voltage_fraction)
+                if temp_target > self.minimum_voltage:
+                    self.set_voltage(temp_target, block_until_reached=True)
+
+        # at then end, make sure to set it to the target voltage
+        return self.set_voltage(target_voltage, block_until_reached=True)
 
     def get_current_voltage(self, from_buffer_if_available=True):
         """
         Read the current voltage from the switchboard
         :param from_buffer_if_available: If true and if continuous voltage reading is on, the most recent value from
         the voltage buffer is returned instead of querying the switchboard.
-        :return: The current voltage as measrued by the switchboard voltage feedback.
+        :return: The current voltage as measured by the switchboard voltage feedback.
         """
         if from_buffer_if_available is True and self.reading_thread.is_alive():
             with self.buffer_lock:
@@ -573,58 +597,29 @@ class Switchboard:
         :return: The the updated relay state returned by the switchboard
         """
         if relays is None:
-            self.logging.info("Set all relays on")
-            self.relay_state = [1] * 6
-            self.relay_mode = 1
-            res = self.send_query("SRelOn")
-            res = self._parse_relay_state(res)[1] == self.relay_state  # check if all are on
-        else:
-            if self.firmware_version < 20:  # v1
-                res = True
-                for i in relays:
-                    rres = self.set_relay_state(i, 1)
-                    if rres is False:  # if any one failed, the operation was not successful
-                        res = False
-            else:
-                self.logging.warning("Switching individual relays is not supported in v2. Use selective auto mode!")
-                res = False
-        return res
+            relays = list(range(6))  # all relays on
 
-    def set_relays_off(self, relays=None):
+        self.logging.info("Set relays on: {}".format(relays))
+        rel_bin = [int(i in relays) for i in range(6)]  # get desired state (0/1) for each relay
+        self.relay_state = rel_bin
+        self.relay_mode = 1
+        # compose string of which relays to switch on
+        rel_str = ""
+        for rel in rel_bin:
+            rel_str += str(rel)
+        res = self.send_query("SROn " + rel_str)
+        return self._parse_relay_state(res) == self.relay_state  # check if all are on
+
+    def set_relays_off(self):
         """
-        Switch the requested relays off. If not specified, all relays are switched off.
-        :param relays: A list of indices specifying which relays to switch off
+        Switch all relays off.
         :return: True, if the relay state was set successfully
         """
-        if relays is None:
-            self.logging.info("Set all relays off")
-            self.relay_state = [0] * 6
-            self.relay_mode = 0
-            res = self.send_query("SRelOff")
-            res = self._parse_relay_state(res)[1] == self.relay_state  # check if all are off
-        else:
-            if self.firmware_version < 20:  # v1
-                res = True
-                for i in relays:
-                    rres = self.set_relay_state(i, 0)
-                    if rres is False:  # if any one failed, the operation was not successful
-                        res = False
-            else:
-                self.logging.warning("Switching individual relays is not supported in v2. Use selective auto mode!")
-                res = False
-        return res
-
-    def set_relay_state(self, relay, state):
-        """Only supported by v1!"""
-        self.relay_state[relay] = state
-        if state is 0:
-            self.logging.debug("Setting relay {} off".format(relay))
-            self.send_query("SRelOff {:d}".format(relay))
-        else:  # state is 1
-            self.logging.debug("Setting relay {} on".format(relay))
-            self.send_query("SRelOn {:d}".format(relay))
-        res = self.get_relay_state(from_buffer_if_available=False)
-        return res[relay] == state
+        self.logging.info("Set all relays off")
+        self.relay_state = [0] * 6
+        self.relay_mode = 0
+        res = self.send_query("SROff")
+        return self._parse_relay_state(res) == self.relay_state  # check if all are off
 
     def get_relay_state(self, from_buffer_if_available=True):
         """
@@ -639,17 +634,8 @@ class Switchboard:
                     return rs
 
         self.logging.debug("Querying relay state")
-        res = self._parse_relay_state(self.send_query("QRelState"))
-        return res[1]
-
-    def get_relay_mode(self):
-        """
-        Queries the mode of the relais: 0 - all off; 1 - all on; 3 - auto mode
-        :return: The current mode of the relays (int in range [0 3])
-        """
-        self.logging.debug("Querying relay mode")
-        res = self._parse_relay_state(self.send_query("QRelState"))
-        return res[0]
+        res = self._parse_relay_state(self.send_query("QRState"))
+        return res
 
     def set_relay_auto_mode(self, reset_time=0, relays=None):
         """
@@ -673,7 +659,7 @@ class Switchboard:
         msg = "Enabling auto mode with timeout {} s for channels {} (DEAs: {})".format(reset_time, rel_str, relays)
         self.logging.info(msg)
 
-        self.send_query("SRelAuto {:.0f} {}".format(reset_time, rel_str))  # SRelAuto doesn't return a readable message
+        self.send_query("SRAuto {:.0f} 1 {}".format(reset_time, rel_str))  # SRAuto doesn't return a readable message
         res = self.get_relay_state(False)
         return res == rel_bin  # need to query relay state separately to see if it got set correctly
 
@@ -682,8 +668,8 @@ class Switchboard:
         Checks if the switchboard is currently testing for a short circuit
         :return: True, if the switchboard is currently busy testing
         """
-        self.logging.debug("Querying if switchbaord is testing")
-        res = self.send_query("QTestingShort")
+        self.logging.debug("Querying if switchboard is testing")
+        res = self.send_query("QTest")
         return res == "1"
 
     def get_OC_state(self, from_buffer_if_available=True):
@@ -749,7 +735,7 @@ class Switchboard:
 
         self.oc_freq = oc_freq  # update internal model
         self.oc_mode = Switchboard.MODE_AC  # indicate that AC mode is enabled
-        res = self._cast_int(self.send_query("SOCF {:.4f}".format(oc_freq)))
+        res = self._cast_float(self.send_query("SOCF {:.4f}".format(oc_freq)))
         self.t_oc_cycle_counter = time.perf_counter()  # record the time we started AC mode
         if reset_cycle_counter:
             self.oc_cycles = 0.0
@@ -858,7 +844,7 @@ class Switchboard:
     def set_calibration_coefficients(self, C0, C1, C2):
         self.send_query("SC0 {}\r".format(C0))
         self.send_query("SC1 {}\r".format(C1))
-        self.send_query("SC2 {}\r".format(C2))
+        self.send_query("SC2 {}\r".format(C2*1000000))
 
     def reset_calibration_coefficients(self):
         self.set_calibration_coefficients(0, 1, 0)
@@ -1026,7 +1012,7 @@ def test_slow_voltage_rise():
 
 
 def test_switchboard():
-    sb = Switchboard.detect(1)[0]
+    sb = Switchboard.detect()[0]
     sb.open()
     t_start = time.perf_counter()
     sb.set_voltage(500)
@@ -1186,7 +1172,7 @@ def test_switchboard():
 
 
 def test_voltage_sequence():
-    sb = Switchboard.detect(1)[0]
+    sb = Switchboard()
     sb.open()
     buf_length = 100000
     sb.start_continuous_reading(buffer_length=buf_length)
@@ -1233,17 +1219,18 @@ def tune_pid():
     print(name)
     t_start = time.perf_counter()
     sb.start_continuous_reading(reference_time=t_start, buffer_length=100000)
-    Vset = 1500
+    Vset = 2000
     freq = 50
-    samples = [1, 3, 4, 5]
+    samples = [0, 1, 2, 3, 4, 5]
     steps = 3
     wait_period = 3
 
     time.sleep(0.1)
 
-    sb.set_relays_on(samples)  # switch on only the ones we want
+    # sb.set_relays_on(samples)  # switch on only the ones we want
+    sb.set_relays_on()  # switch on all
 
-    sb.set_pid_gains((0.2, 1.0, 0.005))
+    sb.set_pid_gains((0.15, 1.0, 0.000))
     gains = sb.get_pid_gains()
     print("PID gains:", gains)
 
@@ -1268,7 +1255,7 @@ def tune_pid():
     time.sleep(wait_period)
 
     sb.set_OC_mode(Switchboard.MODE_OFF)
-    sb.set_voltage(0.95 * Vset)
+    sb.set_voltage(0.90 * Vset)
     print("Stopped cycling. Switched OC off.")
     time.sleep(1)
 
@@ -1297,7 +1284,9 @@ def tune_pid():
 
     tV, V, Vsp, rel, oc_mode, hb_mode = sb.get_data_buffer()
 
-    v_on = oc_mode[0] > 0
+    oc_mode = oc_mode[:, 0]  # get only mode, not state
+    oc_mode[oc_mode == 4] = 2  # make AC mode == 2 so it's better to plot
+    v_on = oc_mode > 0
     v_real = V * v_on
     vmax = np.amax(v_real)
     ivmax = np.argmax(v_real)
@@ -1309,7 +1298,7 @@ def tune_pid():
     ax1.plot(tV, Vsp, color="C0")
     ax1.plot(tV, V, color="C1")
     ax2 = ax1.twinx()
-    ax2.plot(tV, oc_mode[0], color="C2")
+    ax2.plot(tV, oc_mode, color="C2")
     ax2.set_ylabel("OC on", color="C2")
     ax2.set_yticks([0, 1, 2])
     ax2.set_yticklabels(["Off", "DC", "AC {} Hz".format(freq)])

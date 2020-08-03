@@ -112,7 +112,7 @@ void TComm::SVmax() {
 	unsigned int val = (unsigned int)sCmd.parseLongArg();
 	Serial.println(val);
 	EEPROM.put(MEEPROM::ADR_VMAX_2B, val);
-	Serial.println("[INFO]: Max voltage saved - requires reboot!");
+	gTDCDC.set_Vmax(val);
 }
 void TComm::QVmin() {
 	unsigned int val;
@@ -123,7 +123,7 @@ void TComm::SVmin() {
 	unsigned int val = (unsigned int)sCmd.parseLongArg();
 	Serial.println(val);
 	EEPROM.put(MEEPROM::ADR_VMIN_2B, val);
-	Serial.println("[INFO]: Min voltage saved - requires reboot!");
+	gTDCDC.set_Vmin(val);
 }
 void TComm::QVset() {
 	unsigned int val;
