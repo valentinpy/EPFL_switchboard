@@ -57,8 +57,8 @@ if __name__ == '__main__':
     p_probe = np.poly1d(probe_fit)
 
     # user defined settings
-    minvoltage = 300
-    maxvoltage = 4000
+    minvoltage = 100
+    maxvoltage = 5000
     stepvoltage = 100
     delay_sw_s = 1.5
     t = 1  # Durée d'acquisition (s)
