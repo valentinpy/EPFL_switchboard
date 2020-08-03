@@ -97,7 +97,11 @@ void TDCDC::run(){
         // - input => measured voltage
         // - output => result of PID computation => PWM duty cycle
         input = last_Vnow; // Tell PID what was the measured voltage
-        if (HVPS_PID.Compute()) {
+        bool newValue = HVPS_PID.Compute(); // update PID controller on every cycle
+        if (setpoint == 0) { // if setpoint is 0, we ignore controller and set output off
+            setPWMDuty(1023); // set to max value -> inverted PWM to 0 -> DCDC off
+        }
+        else if (newValue) {
             setPWMDuty(output); // Apply output if computed
             //Serial.print("in: ");
             //Serial.print(input);

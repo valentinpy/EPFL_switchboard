@@ -35,6 +35,7 @@ private:
 
 	// enum of possible states
 	enum stateEnum { GND = 0, HV = 1, HIGHZ = 3, DONTCARE };
+	stateEnum currentState = GND;
 
 	// struct used for state machine when a new state change is requested
 	struct newStatetruct {

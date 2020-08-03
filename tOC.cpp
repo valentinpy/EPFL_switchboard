@@ -72,7 +72,7 @@ void TOC::stateChange(uint8_t newState) {
 }
 
 uint8_t TOC::getState() {
-	return newStateS.state;
+	return currentState;
 }
 
 uint8_t TOC::getOperationMode() {
@@ -124,6 +124,7 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 			lin = 1;
 			break;
 		}
+		currentState = newState;
 		// next state: disconnect all that has to be disconnected
 		stateMachine = disconnect;
 	}

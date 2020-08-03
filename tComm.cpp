@@ -40,6 +40,7 @@ void TComm::setup() {
 	sCmd.addCommand("SVset", this->SVset);
 	sCmd.addCommand("QVset", this->QVset);
 	sCmd.addCommand("QVnow", this->QVnow);
+	sCmd.addCommand("QCur", this->QCurrent);
 	sCmd.addCommand("QName", this->QName);
 	sCmd.addCommand("SName", this->SName);
 	sCmd.addCommand("QMem", this->QMem);
@@ -163,19 +164,20 @@ void TComm::QVer() {
 	Serial.println(SOFTWARE_VERSION);
 }
 void TComm::Conf() {
-	Serial.println("Not fully implemented yet");
+	Serial.println("Initializing switchboard config with default values");
 
 	EEPROM.put(MEEPROM::ADR_C0_DBL, (double)0.0);
 	EEPROM.put(MEEPROM::ADR_C1_DBL, (double)1.0);
 	EEPROM.put(MEEPROM::ADR_C2_DBL, (double)0.0);
 
-	EEPROM.put(MEEPROM::ADR_KP_DBL, (double)0.23);
-	EEPROM.put(MEEPROM::ADR_KI_DBL, (double)2.2);
-	EEPROM.put(MEEPROM::ADR_KD_DBL, (double)0.004);
+	EEPROM.put(MEEPROM::ADR_KP_DBL, (double)0.15);
+	EEPROM.put(MEEPROM::ADR_KI_DBL, (double)1.0);
+	EEPROM.put(MEEPROM::ADR_KD_DBL, (double)0.0);
 
 	MEEPROM::update_string(MEEPROM::ADR_NAME_STR, 21, "NOT DEFINED");
 
 	EEPROM.put(MEEPROM::ADR_VMAX_2B, 5000);
+	EEPROM.put(MEEPROM::ADR_VMIN_2B, 100);
 	EEPROM.put(MEEPROM::ADR_VSET_2B, 0);
 	Serial.println("!!REBOOT REQUIRED!!");
 }
@@ -435,7 +437,7 @@ void TComm::vpy() {
 		gTDCDC.set_target_voltage(2000);
 		gTHB.stateChange(1);
 		gTOC.stateChange(1);
-		bool tmp[] = { 1,0,0,1,0,1 };
+		bool tmp[] = { 0,1,1,1,0,0 };
 		gTChannels.autoMode(0, 1, tmp);
 		break;
 	default:
