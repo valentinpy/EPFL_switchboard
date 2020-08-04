@@ -110,9 +110,9 @@ void TComm::QVmax() {
 }
 void TComm::SVmax() {
 	unsigned int val = (unsigned int)sCmd.parseLongArg();
-	Serial.println(val);
 	EEPROM.put(MEEPROM::ADR_VMAX_2B, val);
 	gTDCDC.set_Vmax(val);
+	Serial.println(gTDCDC.get_Vmax());
 }
 void TComm::QVmin() {
 	unsigned int val;
@@ -121,9 +121,9 @@ void TComm::QVmin() {
 }
 void TComm::SVmin() {
 	unsigned int val = (unsigned int)sCmd.parseLongArg();
-	Serial.println(val);
 	EEPROM.put(MEEPROM::ADR_VMIN_2B, val);
 	gTDCDC.set_Vmin(val);
+	Serial.println(gTDCDC.get_Vmin());
 }
 void TComm::QVset() {
 	unsigned int val;
@@ -283,48 +283,47 @@ void TComm::SRelAuto() {
 			break;
 		}
 	}
+
+	// print auto mode parameter info
 	Serial.print("[INFO]: Activating auto mode. Retry: ");
 	Serial.print(retry_duration_s);
 	Serial.print("[s]; ");
 	Serial.print("Auto reconnect: ");
-	Serial.print(enable_reconnect);
-	Serial.print("; ");
-	Serial.print("Channels: ");
-	Serial.print(relays_to_use[0]);
-	for (int i = 1; i < 6; i++) {
-		Serial.print(",");
-		Serial.print(relays_to_use[i]);
-	}
-	Serial.println("");
+	if(enable_reconnect)
+		Serial.print("on");
+	else
+		Serial.print("off");
+	Serial.println();
 
 	gTChannels.autoMode(retry_duration_s, enable_reconnect, relays_to_use);
 
+	gTChannels.printChannelsStatus();
 }
 
-void TComm::SRelAutoDisconnect()
-{
-	bool enabled = sCmd.parseLongArg();
-	gTChannels.auto_disconnect_enabled = enabled;
-	if (!enabled) {
-		gTChannels.auto_reconnect_enabled = enabled; // can't do auto reconnect without auto disconnect
-		gTChannels.reset(); // if turning auto reconnect off, we need should reset to restore user defined state and stop any ongoing testing
-	}
-}
+//void TComm::SRelAutoDisconnect()
+//{
+//	bool enabled = sCmd.parseLongArg();
+//	gTChannels.auto_disconnect_enabled = enabled;
+//	if (!enabled) {
+//		gTChannels.auto_reconnect_enabled = enabled; // can't do auto reconnect without auto disconnect
+//		gTChannels.reset(); // if turning auto reconnect off, we need should reset to restore user defined state and stop any ongoing testing
+//	}
+//}
 
-void TComm::SRelAutoReconnect()
-{
-	bool enabled = sCmd.parseLongArg();
-	gTChannels.auto_reconnect_enabled = enabled;
-	if (!enabled) {
-		gTChannels.reset(); // if turning auto reconnect off, we need should reset to restore user defined state and stop any ongoing testing
-	}
-}
+//void TComm::SRelAutoReconnect()
+//{
+//	bool enabled = sCmd.parseLongArg();
+//	gTChannels.auto_reconnect_enabled = enabled;
+//	if (!enabled) {
+//		gTChannels.reset(); // if turning auto reconnect off, we need should reset to restore user defined state and stop any ongoing testing
+//	}
+//}
 
-void TComm::SRelAutoReset()
-{
-	uint16_t delay = sCmd.parseLongArg();
-	gTChannels.setAutoRestartDelay(delay);
-}
+//void TComm::SRelAutoReset()
+//{
+//	uint16_t delay = sCmd.parseLongArg();
+//	gTChannels.setAutoRestartDelay(delay);
+//}
 
 void TComm::QRelState() {
 	gTChannels.printChannelsStatus();
@@ -411,7 +410,7 @@ void TComm::QEnable() {
 }
 
 void TComm::Reboot() {
-	Serial.println("[INFO]: Rebooting due to user request");
+	Serial.println("Rebooting due to user request");
 	wdt_enable(WDTO_15MS);
 	while (1) {}
 }

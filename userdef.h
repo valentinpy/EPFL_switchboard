@@ -1,3 +1,3 @@
 #pragma once
 
-#define SOFTWARE_VERSION 1
+#define SOFTWARE_VERSION 2

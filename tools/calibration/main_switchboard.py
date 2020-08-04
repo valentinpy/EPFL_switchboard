@@ -57,9 +57,9 @@ if __name__ == '__main__':
     p_probe = np.poly1d(probe_fit)
 
     # user defined settings
-    minvoltage = 100
-    maxvoltage = 5000
-    stepvoltage = 100
+    minvoltage = 300
+    maxvoltage = 4800
+    stepvoltage = 50
     delay_sw_s = 1.5
     t = 1  # Durée d'acquisition (s)
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     ax3.set_xlabel("Target voltage [V]")
     ax3.set_ylabel("Error voltage [V]")
     ax3.legend(["Error before", "Error after", "Fit"])
-    ax3.set_title("C0: {:.3f}, C1: {:.3f}, C2: {:.3f}".format(fit[2], fit[1], fit[0]))
+    ax3.set_title("C0: {:.3f}, C1: {:.3f}, C2: {:.3f}".format(fit[2], fit[1], fit[0]*1000000))
 
     # fig3, ax = plt.subplots()
     # ax.plot(target_voltages, voltage_HV / voltage_input, 'b+-',
