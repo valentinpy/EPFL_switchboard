@@ -31,7 +31,7 @@ void TComm::setup() {
 	Serial.println("Switchboard V2");
 
 	//SERIALCOMMAND_MAXCOMMANDLENGTH 7 -> Maximum length of a command excluding the terminating null
-	//SERIALCOMMAND_MAXCOMMANDCOUNT 40 -> Maximum number of different commands to store
+	//SERIALCOMMAND_MAXCOMMANDCOUNT 42 -> Maximum number of different commands to store
 	// Do not exceed these values! Can be changed in mSerialCommand.h if necesssary but watch out for maximum memory usage
 	sCmd.addCommand("QVmax", this->QVmax);
 	sCmd.addCommand("SVmax", this->SVmax);
@@ -64,6 +64,7 @@ void TComm::setup() {
 	sCmd.addCommand("QRState", this->QRelState);
 	sCmd.addCommand("QTest", this->QTestingShort);
 	sCmd.addCommand("QShort", this->QShortDetected);
+	sCmd.addCommand("QStable", this->QStable);
 	sCmd.addCommand("SOC", this->SOC);
 	sCmd.addCommand("SOCF", this->SOCF);
 	sCmd.addCommand("QOC", this->QOC);
@@ -287,7 +288,7 @@ void TComm::SRelAuto() {
 	// print auto mode parameter info
 	Serial.print("[INFO]: Activating auto mode. Retry: ");
 	Serial.print(retry_duration_s);
-	Serial.print("[s]; ");
+	Serial.print(" s; ");
 	Serial.print("Auto reconnect: ");
 	if(enable_reconnect)
 		Serial.print("on");
@@ -336,6 +337,11 @@ void TComm::QShortDetected()
 
 void TComm::QTestingShort() {
 	Serial.println(gTChannels.isTestingShort());
+}
+
+void TComm::QStable()
+{
+	Serial.println(gTDCDC.is_voltage_stable());
 }
 
 void TComm::QCurrent() {

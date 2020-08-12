@@ -96,13 +96,19 @@ void TDCDC::run(){
         // - setpoint => target voltage
         // - input => measured voltage
         // - output => result of PID computation => PWM duty cycle
-        input = last_Vnow; // Tell PID what was the measured voltage
-        bool newValue = HVPS_PID.Compute(); // update PID controller on every cycle
         if (setpoint == 0) { // if setpoint is 0, we ignore controller and set output off
             setPWMDuty(1023); // set to max value -> inverted PWM to 0 -> DCDC off
+
+            if (output < 1023) {  // last output was not yet 0 V (1023)  -> let controller know it hasn't reached the set point yet by giving a fake input
+                input = 100;
+                HVPS_PID.Compute();  // update controler
+            }
         }
-        else if (newValue) {
-            setPWMDuty(output); // Apply output if computed
+        else {
+            input = last_Vnow; // Tell PID what was the measured voltage
+            bool newValue = HVPS_PID.Compute(); // update PID controller on every cycle when setpoint is > 0
+            if (newValue)
+                setPWMDuty(output); // Apply output if computed
             //Serial.print("in: ");
             //Serial.print(input);
             //Serial.print("\tsetpoint: ");
@@ -163,8 +169,10 @@ uint16_t TDCDC::set_target_voltage(uint16_t voltage){
         Serial.println("[WARN]: Target is below minimum voltage. Setting to 0 V instead.");
         voltage = 0;
     }
-    setpoint_save = voltage;
-    reset_stabilization_timer();
+    if (voltage != setpoint_save) { // only need to apply change if new target is different
+        setpoint_save = voltage;
+        reset_stabilization_timer();
+    }
     return voltage;
 }
 

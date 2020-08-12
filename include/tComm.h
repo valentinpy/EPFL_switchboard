@@ -36,12 +36,10 @@ private:
   static void SRelOn();
   static void SRelOff();
   static void SRelAuto();
-  static void SRelAutoDisconnect();
-  static void SRelAutoReconnect();
-  static void SRelAutoReset();
   static void QRelState();
   static void QShortDetected();
   static void QTestingShort();
+  static void QStable();
   static void QCurrent();
   static void SOC();
   static void SOCF();
