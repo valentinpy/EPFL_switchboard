@@ -30,8 +30,8 @@ void TComm::setup() {
 	Serial.begin(115200);
 	Serial.println("Switchboard V2");
 
-	//SERIALCOMMAND_MAXCOMMANDLENGTH 7 -> Maximum length of a command excluding the terminating null
-	//SERIALCOMMAND_MAXCOMMANDCOUNT 42 -> Maximum number of different commands to store
+	//SERIALCOMMAND_MAXCOMMANDLENGTH 5 -> Maximum length of a command excluding the terminating null
+	//SERIALCOMMAND_MAXCOMMANDCOUNT 34 -> Maximum number of different commands to store
 	// Do not exceed these values! Can be changed in mSerialCommand.h if necesssary but watch out for maximum memory usage
 	sCmd.addCommand("QVmax", this->QVmax);
 	sCmd.addCommand("SVmax", this->SVmax);
@@ -46,33 +46,33 @@ void TComm::setup() {
 	sCmd.addCommand("QMem", this->QMem);
 	sCmd.addCommand("QVer", this->QVer);
 	sCmd.addCommand("Conf", this->Conf);
-	sCmd.addCommand("SC0", this->SC0);
-	sCmd.addCommand("SC1", this->SC1);
-	sCmd.addCommand("SC2", this->SC2);
-	sCmd.addCommand("QC0", this->QC0);
-	sCmd.addCommand("QC1", this->QC1);
-	sCmd.addCommand("QC2", this->QC2);
-	sCmd.addCommand("SKp", this->SKp);
-	sCmd.addCommand("SKi", this->SKi);
-	sCmd.addCommand("SKd", this->SKd);
+	//sCmd.addCommand("SC0", this->SC0);
+	//sCmd.addCommand("SC1", this->SC1);
+	//sCmd.addCommand("SC2", this->SC2);
+	//sCmd.addCommand("QC0", this->QC0);
+	//sCmd.addCommand("QC1", this->QC1);
+	//sCmd.addCommand("QC2", this->QC2);
+	//sCmd.addCommand("SKp", this->SKp);
+	//sCmd.addCommand("SKi", this->SKi);
+	//sCmd.addCommand("SKd", this->SKd);
 	sCmd.addCommand("QKp", this->QKp);
 	sCmd.addCommand("QKi", this->QKi);
 	sCmd.addCommand("QKd", this->QKd);
 	sCmd.addCommand("SROn", this->SRelOn);
 	sCmd.addCommand("SROff", this->SRelOff);
-	sCmd.addCommand("SRAuto", this->SRelAuto);
-	sCmd.addCommand("QRState", this->QRelState);
+	sCmd.addCommand("SRAut", this->SRelAuto);
+	sCmd.addCommand("QR", this->QRelState);
 	sCmd.addCommand("QTest", this->QTestingShort);
-	sCmd.addCommand("QShort", this->QShortDetected);
-	sCmd.addCommand("QStable", this->QStable);
+	sCmd.addCommand("QShrt", this->QShortDetected);
+	sCmd.addCommand("QStbl", this->QStable);
 	sCmd.addCommand("SOC", this->SOC);
 	sCmd.addCommand("SOCF", this->SOCF);
 	sCmd.addCommand("QOC", this->QOC);
 	sCmd.addCommand("SHB", this->SHB);
 	sCmd.addCommand("SHBF", this->SHBF);
 	sCmd.addCommand("QHB", this->QHB);
-	sCmd.addCommand("QEnable", this->QEnable);
-	sCmd.addCommand("Reboot", this->Reboot);
+	sCmd.addCommand("QEnbl", this->QEnable);
+	sCmd.addCommand("Rebt", this->Reboot);
 	sCmd.addCommand("Debug", this->Debug);
 	sCmd.addCommand("vpy", this->vpy); // vpy testing command
 	sCmd.setDefaultHandler(this->unrecognized); // Handler for command that isn't matched
@@ -135,7 +135,7 @@ void TComm::SVset() {
 	unsigned int val = (unsigned int)sCmd.parseLongArg();
 	val = gTDCDC.set_target_voltage(val); // returns the voltage is actually set after applying min and max limits
 	if (val > 0 && !gTDCDC.get_enable_switch())
-		Serial.println("[WARN]: Safety switch disabled or 12 V supply disconnected. New target is stored but HV output will remain off.");
+		Serial.println("[WARN]: Safety switch disabled or 12V disconnected!");
 	Serial.println(val); // print the value that was actually set
 
 
@@ -416,7 +416,7 @@ void TComm::QEnable() {
 }
 
 void TComm::Reboot() {
-	Serial.println("Rebooting due to user request");
+	Serial.println("Rebooting");
 	wdt_enable(WDTO_15MS);
 	while (1) {}
 }

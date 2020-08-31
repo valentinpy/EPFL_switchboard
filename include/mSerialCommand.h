@@ -36,9 +36,9 @@
 // Size of the input buffer in bytes (maximum length of one command plus arguments)
 #define SERIALCOMMAND_BUFFER 32
 // Maximum length of a command excluding the terminating null
-#define SERIALCOMMAND_MAXCOMMANDLENGTH 7
+#define SERIALCOMMAND_MAXCOMMANDLENGTH 5
 // Maximum number of different commands to store
-#define SERIALCOMMAND_MAXCOMMANDCOUNT 42
+#define SERIALCOMMAND_MAXCOMMANDCOUNT 34
 
 // Uncomment the next line to run the library in debug mode (verbose messages)
 //#define SERIALCOMMAND_DEBUG
