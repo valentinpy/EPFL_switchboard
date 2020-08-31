@@ -140,6 +140,22 @@ void TDCDC::run(){
         else {
             voltage_stable = false; // can't be considered stable if output is off
         }
+
+        // check for voltage drop during rise (before stable state was reached)
+        if (!voltage_stable && !voltage_drop_detected) {  // if stable state has already been reached or we already detected a drop, we don't need to do this
+            if (millis() - timer_last_state_change > STATE_CHANGE_COOLDOWN_MS) {  // last state change is sufficiently long ago that the voltage should no longer be dropping no matter what (unless there is a short) so we can engage voltage drop detection
+                if (setpoint - last_Vnow > V_STABLE_THRESHOLD) {  // voltage must be below set point and outside the stable range to be considered a voltage drop
+                    if (prev_Vnow > -1) {  // valid previous voltage available
+                        if (prev_Vnow - last_Vnow > V_STABLE_THRESHOLD) {  // if voltage is dropping (by more than a few volts)
+                            Serial.println("[INFO]: Voltage drop detected! [during rise]");
+                            voltage_drop_detected = true;
+                            gTChannels.voltage_drop_detected_callback();
+                        }
+                    }
+                }
+                prev_Vnow = last_Vnow;
+            }
+        }
     
         
         if (long_shortCircuitProtection()) { // voltage has been low for a long time --> shut everything down to avoid damage to DCDC!
@@ -246,7 +262,10 @@ bool TDCDC::read_enable_switch() {
 
 void TDCDC::reset_stabilization_timer() {
     voltage_stable = false;
-    timer_last_V_off_target = millis();
+    voltage_drop_detected = false;
+    prev_Vnow = -1;
+    timer_last_state_change = millis();
+    timer_last_V_off_target = timer_last_state_change;
 }
 
 void TDCDC::initPWM() {

@@ -63,10 +63,9 @@ private:
 
 	uint32_t supplementary_delay_ms = 0;
 	int8_t shortcircuit_finder_index;
-	const uint8_t THRESHOLD_PERCENT = 80;
-	const double TEMP_DECREASE_MODIFIER = 0.8;
-	const uint16_t RELAUTO_MIN_LOW_VOLTAGE_TIME_MS = 500; // Minimum time [ms] for a short circuit to be detected (avoid trigger when voltage target increases)
-	const uint16_t RELAUTO_TESTING_TIME_MS = 1000; // Test duration before declaring a faulty sample
+	const double TEMP_DECREASE_MODIFIER = 0.8;  // by how much to reduce target voltage during short circuit testing
+	const uint16_t RELAUTO_LOW_VOLTAGE_TIME_THRESH_MS = 1000; // Minimum time [ms] that voltage needs to be low (as determined by tDCDC) for a short circuit to be detected
+	const uint16_t RELAUTO_TESTING_TIME_MS = 1500; // Test duration before declaring a faulty sample
 	const uint16_t RELAUTO_WAITING_VOTLAGE_REG_TIME_MS = 3000; // Max time to wait to wait for voltage to stabilize when no samples are connected
 	const uint16_t RELAUTO_REL_TIME_MS = 200;
 

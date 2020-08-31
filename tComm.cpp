@@ -442,7 +442,7 @@ void TComm::vpy() {
 		gTDCDC.set_target_voltage(2000);
 		gTHB.stateChange(1);
 		gTOC.stateChange(1);
-		bool tmp[] = { 0,1,1,1,0,0 };
+		bool tmp[] = { 1,1,0,1,0,1 };
 		gTChannels.autoMode(0, 1, tmp);
 		break;
 	default:

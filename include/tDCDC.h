@@ -75,13 +75,16 @@ private:
 	const float CURMEAS_ALPHA = 0.1; //alpha constant for current feedback filtering (1 = no filtering)
 	const uint32_t PERIOD_V_STABLE_MS = 500; // how long voltage needs to be on target to be considered "stable"
 	const uint16_t V_STABLE_THRESHOLD = 20; // how close voltage needs to be to set point to be considered on target
+	const uint32_t STATE_CHANGE_COOLDOWN_MS = 100; // how long to wait after a state change before short detection can trigger if voltage isn't rising
 
 
 	double C0;
 	double C1;
 	double C2;
 	uint16_t last_Vnow;
+	int32_t prev_Vnow;  // reference to check if voltage is rising or falling. can be set to -1 to indicate no reference available
 	uint16_t last_PWM;
+	uint32_t timer_last_state_change;
 	uint32_t timer_last_V_off_target;
 	bool voltage_stable = false;
 	bool voltage_drop_detected = false;
@@ -122,8 +125,8 @@ private:
 	uint32_t timer_lscp_VOK;
 	uint32_t timer_lscp_Vlow;
 	uint16_t duration_voltage_low;
-	const float LSCP_VOLTAGE_THRESHOLD_REL = 0.5; // voltage threshold (as a proportion og Vset) under which the short protection triggers
-	const uint16_t LSCP_MAX_TIME_MS = 5000;  // duration of the short protection countdown before DCDC is switched off for safety
+	const float LSCP_VOLTAGE_THRESHOLD_REL = 0.9; // voltage threshold (as a proportion og Vset) under which the long-term short protection triggers
+	const uint16_t LSCP_MAX_TIME_MS = 7000;  // duration of the short protection countdown before DCDC is switched off for safety
 	const uint16_t LSCP_CANCEL_TIME_MS = 500;  // minimum time the voltage must be in range to reset the short protection countdown
 
 

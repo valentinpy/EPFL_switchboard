@@ -185,24 +185,9 @@ void TChannels::run() {
 			// check voltages
 			uint16_t Vset = gTDCDC.get_Vset();
 			uint16_t Vnow = gTDCDC.get_last_Vnow();
-			uint32_t Vthreshold = ((uint32_t)Vset) * (uint32_t)(THRESHOLD_PERCENT) / 100;
-
-			// Normal mode: detect short circuits and handle auto retry if activated
-			if ((Vnow < Vthreshold) && (timer1 == 0)) { // &&Vset>50
-				// Low voltage: first time
-				// Store time, stay in this state
-				timer1 = millis();
-				state = STATE_NORMAL;
-			}
-			else if (Vnow >= Vthreshold) { //  && (Vset > 50)
-				// No low voltage anymore
-				// Reset short circuit timer and stay in this state
-				timer1 = 0;
-				state = STATE_NORMAL;
-			}
-
-			//if (((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS))) { // don't need to check the actual voltage anymore. tDCDC does that now
-			if (gTDCDC.get_duration_voltage_low() >= RELAUTO_MIN_LOW_VOLTAGE_TIME_MS) {
+			
+			//if (((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_LOW_VOLTAGE_TIME_THRESH_MS))) { // don't need to check the actual voltage anymore. tDCDC does that now
+			if (gTDCDC.get_duration_voltage_low() >= RELAUTO_LOW_VOLTAGE_TIME_THRESH_MS) {
 				Serial.println("[INFO]: Voltage drop detected! [slow]");
 				// Short circuit confirmed
 				// Go to confirmed short circuit init case
