@@ -74,7 +74,7 @@ private:
 	const float HVMEAS_ALPHA = 0.1; //alpha constant for high voltage feedback filtering
 	const float CURMEAS_ALPHA = 0.1; //alpha constant for current feedback filtering (1 = no filtering)
 	const uint32_t PERIOD_V_STABLE_MS = 500; // how long voltage needs to be on target to be considered "stable"
-	const uint16_t V_STABLE_THRESHOLD = 20; // how close voltage needs to be to set point to be considered on target
+	const uint16_t V_STABLE_THRESHOLD = 50; // how close voltage needs to be to set point to be considered on target
 	const uint32_t STATE_CHANGE_COOLDOWN_MS = 100; // how long to wait after a state change before short detection can trigger if voltage isn't rising
 
 
