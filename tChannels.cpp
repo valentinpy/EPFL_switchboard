@@ -49,11 +49,13 @@ bool TChannels::set6(bool* state) {
 	return true;
 }
 
+// public
 void TChannels::allOn() {
 	bool relays[6] = { 1,1,1,1,1,1 };
 	setAllRelays(relays);
 }
 
+// public
 void TChannels::allOff() {
 	bool relays[6] = { 0,0,0,0,0,0 };
 	setAllRelays(relays);
@@ -255,8 +257,8 @@ void TChannels::run() {
 		}
 		else if ((millis() - timer1) > RELAUTO_WAITING_VOTLAGE_REG_TIME_MS) {
 			// timeout expired, voltage did not stabilize -> seems to be a problem with the HVPS, not any of the samples
-			Serial.println("[ERR]: Voltage did not stabilize with all relays off, aborting - settting target voltage to 0");
-			gTDCDC.set_target_voltage(0);
+			Serial.println("[ERR]: Voltage did not stabilize with all relays of. Shutting down!");
+			gTDCDC.shutdown();
 			state = STATE_ERR;
 		}
 		else {

@@ -48,6 +48,7 @@ private:
   static void SHBF();
   static void QHB();
   static void QEnable();
+  static void SDeadManSwitch();
   static void Reboot();
   static void Debug();
   static void vpy(); // vpy testing command
@@ -55,6 +56,7 @@ private:
 
   static void debugPrint();
 
+  static uint32_t deadManSwitchTimeout_ms;
   static bool debugEnabled;
 
   static uint32_t timer;

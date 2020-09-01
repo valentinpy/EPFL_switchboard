@@ -38,7 +38,7 @@
 // Maximum length of a command excluding the terminating null
 #define SERIALCOMMAND_MAXCOMMANDLENGTH 5
 // Maximum number of different commands to store
-#define SERIALCOMMAND_MAXCOMMANDCOUNT 34
+#define SERIALCOMMAND_MAXCOMMANDCOUNT 44
 
 // Uncomment the next line to run the library in debug mode (verbose messages)
 //#define SERIALCOMMAND_DEBUG
@@ -56,6 +56,9 @@ class mSerialCommand {
 
     long parseLongArg();
 	double parseDoubleArg();
+
+    uint32_t t_last_message_received;
+
   private:
     // Command/handler dictionary
     struct mSerialCommandCallback {

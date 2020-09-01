@@ -159,18 +159,25 @@ void TDCDC::run(){
     
         
         if (long_shortCircuitProtection()) { // voltage has been low for a long time --> shut everything down to avoid damage to DCDC!
-            Serial.println("[WARN]: Long voltage drop detected. Shutting down!");
-            // DCDC off
-            set_target_voltage(0);
-            // set HB to GND
-            gTHB.setOperationMode(THB::OPMANUAL);
-            gTHB.stateChange(0);
-            // set OC to GND
-            gTOC.setOperationMode(TOC::OPMANUAL);
-            gTOC.stateChange(0);
+            Serial.println("[ERR]: Long voltage drop detected. Shutting down!");
+            shutdown();
         }
 
     }
+}
+
+void TDCDC::shutdown()
+{
+    // DCDC off
+    set_target_voltage(0);
+    // set HB to GND
+    gTHB.setOperationMode(THB::OPMANUAL);
+    gTHB.stateChange(0);
+    // set OC to GND
+    gTOC.setOperationMode(TOC::OPMANUAL);
+    gTOC.stateChange(0);
+    // disconnect all channels
+    gTChannels.allOff();
 }
 
 uint16_t TDCDC::set_target_voltage(uint16_t voltage){

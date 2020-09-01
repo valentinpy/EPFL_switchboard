@@ -24,6 +24,7 @@ extern TChannels gTChannels;
 extern TLed gTLed;
 
 bool TComm::debugEnabled = false;
+uint32_t TComm::deadManSwitchTimeout_ms = 0;
 uint32_t TComm::timer = 0;
 
 void TComm::setup() {
@@ -31,7 +32,7 @@ void TComm::setup() {
 	Serial.println("Switchboard V2");
 
 	//SERIALCOMMAND_MAXCOMMANDLENGTH 5 -> Maximum length of a command excluding the terminating null
-	//SERIALCOMMAND_MAXCOMMANDCOUNT 34 -> Maximum number of different commands to store
+	//SERIALCOMMAND_MAXCOMMANDCOUNT 44 -> Maximum number of different commands to store
 	// Do not exceed these values! Can be changed in mSerialCommand.h if necesssary but watch out for maximum memory usage
 	sCmd.addCommand("QVmax", this->QVmax);
 	sCmd.addCommand("SVmax", this->SVmax);
@@ -46,15 +47,15 @@ void TComm::setup() {
 	sCmd.addCommand("QMem", this->QMem);
 	sCmd.addCommand("QVer", this->QVer);
 	sCmd.addCommand("Conf", this->Conf);
-	//sCmd.addCommand("SC0", this->SC0);
-	//sCmd.addCommand("SC1", this->SC1);
-	//sCmd.addCommand("SC2", this->SC2);
-	//sCmd.addCommand("QC0", this->QC0);
-	//sCmd.addCommand("QC1", this->QC1);
-	//sCmd.addCommand("QC2", this->QC2);
-	//sCmd.addCommand("SKp", this->SKp);
-	//sCmd.addCommand("SKi", this->SKi);
-	//sCmd.addCommand("SKd", this->SKd);
+	sCmd.addCommand("SC0", this->SC0);
+	sCmd.addCommand("SC1", this->SC1);
+	sCmd.addCommand("SC2", this->SC2);
+	sCmd.addCommand("QC0", this->QC0);
+	sCmd.addCommand("QC1", this->QC1);
+	sCmd.addCommand("QC2", this->QC2);
+	sCmd.addCommand("SKp", this->SKp);
+	sCmd.addCommand("SKi", this->SKi);
+	sCmd.addCommand("SKd", this->SKd);
 	sCmd.addCommand("QKp", this->QKp);
 	sCmd.addCommand("QKi", this->QKi);
 	sCmd.addCommand("QKd", this->QKd);
@@ -72,20 +73,36 @@ void TComm::setup() {
 	sCmd.addCommand("SHBF", this->SHBF);
 	sCmd.addCommand("QHB", this->QHB);
 	sCmd.addCommand("QEnbl", this->QEnable);
+	sCmd.addCommand("SDMS", this->SDeadManSwitch);
 	sCmd.addCommand("Rebt", this->Reboot);
 	sCmd.addCommand("Debug", this->Debug);
 	sCmd.addCommand("vpy", this->vpy); // vpy testing command
 	sCmd.setDefaultHandler(this->unrecognized); // Handler for command that isn't matched
 
 	TComm::debugEnabled = false;
+	TComm::deadManSwitchTimeout_ms = 0;
 	TComm::timer = millis();
 }
 
 void TComm::run() {
 	sCmd.readSerial();     // We don't do much, just process serial commands
-	if ((millis() - TComm::timer) > TComm::DELAY_MS) {
-		TComm::timer = millis();
-		if (TComm::debugEnabled) {
+
+	// if dead man's switch is enabled (>0), check when the last message was received from the host
+	if (TComm::deadManSwitchTimeout_ms) {
+		if ((millis() - sCmd.t_last_message_received) > TComm::deadManSwitchTimeout_ms) {
+			Serial.print("[ERR]: No message from host in ");
+			Serial.print(TComm::deadManSwitchTimeout_ms/1000.0);
+			Serial.println("s. Shutting down!");
+
+			TComm::deadManSwitchTimeout_ms = 0; // switch off DMS so it doesn't keep triggering on every cycle
+			gTDCDC.shutdown();
+		}
+	}
+
+	// if debug is enabled, print current state every 100 ms
+	if (TComm::debugEnabled) {
+		if ((millis() - TComm::timer) > TComm::DELAY_MS) {
+			TComm::timer = millis();
 			debugPrint();
 		}
 	}
@@ -141,7 +158,7 @@ void TComm::SVset() {
 
 	//EEPROM.put(MEEPROM::ADR_VSET_2B,val);
 	//Serial.println("Saved - requires reboot");
-
+	
 }
 void TComm::QVnow() {
 	//Serial.println("Not implemented yet");
@@ -374,7 +391,7 @@ void TComm::SOCF() {
 }
 
 void TComm::QOC() {
-	Serial.print(gTOC.getOperationMode());
+	Serial.print(gTOC.getOperationMode() * !gTOC.ac_paused);  // if ac_paused is true, op mode is temporarily manual (0) regardless of the current setting
 	Serial.print(",");
 	Serial.println(gTOC.getState());
 }
@@ -406,13 +423,20 @@ void TComm::SHBF() {
 
 }
 void TComm::QHB() {
-	Serial.print(gTHB.getOperationMode());
+	Serial.print(gTHB.getOperationMode() * !gTHB.ac_paused);
 	Serial.print(",");
 	Serial.println(gTHB.getState());
 }
 
 void TComm::QEnable() {
 	Serial.println(gTDCDC.get_enable_switch());
+}
+
+void TComm::SDeadManSwitch()
+{
+	double val = (double)sCmd.parseDoubleArg();
+	TComm::deadManSwitchTimeout_ms = val * 1000; // convert to ms and store as uint32
+	Serial.println(TComm::deadManSwitchTimeout_ms/1000.0);
 }
 
 void TComm::Reboot() {

@@ -77,6 +77,8 @@ void mSerialCommand::setDefaultHandler(void (*function)(const char *)) {
 void mSerialCommand::readSerial() {
   while (Serial.available() > 0) {
     char inChar = Serial.read();   // Read single available character, there may be more waiting
+    t_last_message_received = millis();
+
     #ifdef SERIALCOMMAND_DEBUG
       Serial.print(inChar);   // Echo back to serial stream
     #endif

@@ -10,6 +10,8 @@ public:
 	void setup();
 	void run();
 
+	void shutdown();
+
 	bool restore_voltage();  // reset the voltage modifier to 1.0 so the target voltage is the one set by the user
 	
 	double target_voltage_modifier = 1.0;  // a modifier that will be applied to the set point (to decrease voltage temporarily)
