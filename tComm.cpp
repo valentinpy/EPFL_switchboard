@@ -90,12 +90,12 @@ void TComm::run() {
 	// if dead man's switch is enabled (>0), check when the last message was received from the host
 	if (TComm::deadManSwitchTimeout_ms) {
 		if ((millis() - sCmd.t_last_message_received) > TComm::deadManSwitchTimeout_ms) {
-			Serial.print("[ERR]: No message from host in ");
+			Serial.print("[WARN]: No message from host in ");
 			Serial.print(TComm::deadManSwitchTimeout_ms/1000.0);
-			Serial.println("s. Shutting down!");
+			Serial.println("s. Setting voltage to 0!");
 
 			TComm::deadManSwitchTimeout_ms = 0; // switch off DMS so it doesn't keep triggering on every cycle
-			gTDCDC.shutdown();
+			gTDCDC.set_target_voltage(0);
 		}
 	}
 
