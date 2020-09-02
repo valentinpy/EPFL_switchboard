@@ -223,8 +223,6 @@ void TChannels::run() {
 
 		short_detected = 1;
 
-		Serial.println(keep_faulty_channels_off);
-		Serial.println("Channels to test:");
 		if (auto_reconnect_enabled) {
 			shortcircuit_finder_index = 0; // start testing from relay 0
 			//Decrease voltage for testing
@@ -236,7 +234,6 @@ void TChannels::run() {
 			// go to next state
 			state = STATE_SHORT_WAITING;
 			Serial.println("[INFO]: Testing for short circuits...");
-
 		}
 		else {
 			gTDCDC.shutdown();  // turn everything off
