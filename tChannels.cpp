@@ -2,22 +2,27 @@
 #include "include/tChannels.h"
 #include "include/tDCDC.h"
 #include "include/tOC.h"
+#include "include/tHB.h"
 
 
 // external instances of others tasks
 extern TDCDC gTDCDC;
 extern TOC gTOC;
+extern THB gTHB;
 
 void TChannels::setup() {
 	for (int i = 0; i < NBREL; i++) {
 		pinMode(Rel_pin[i], OUTPUT);
 		digitalWrite(Rel_pin[i], LOW);
 		Rel_status[i] = false;
-		RelState_testing[i] = 0;
+		Rel_enabled[i] = false;
+		Rel_test_result[i] = false;
+		Channels_to_test[i] = false;
 	}
 	state = STATE_RST;
 	auto_disconnect_enabled = false;
 	auto_reconnect_enabled = false;
+	keep_faulty_channels_off = false;
 	short_detected = 0;
 	main_timer = millis();
 }
@@ -31,59 +36,54 @@ void TChannels::voltage_drop_detected_callback() {
 }
 
 // private
-bool TChannels::set1(unsigned int channel, bool state) {
+void TChannels::set1(unsigned int channel, bool state) {
 	
 	if (Rel_status[channel] != state) {  // only need to do anything if the new state is different
 		digitalWrite(Rel_pin[channel], state);
 		gTDCDC.reset_stabilization_timer(); // any time we switch anything, we have to assume the voltage is no longer stable
 		Rel_status[channel] = state;
 	}
-	return true;
 }
 
 // private
-bool TChannels::set6(bool* state) {
+void TChannels::set6(bool* state) {
 	for (int i = 0; i < NBREL; i++) {
 		set1(i, state[i]);
 	}
-	return true;
 }
 
 // public
 void TChannels::allOn() {
-	bool relays[6] = { 1,1,1,1,1,1 };
+	bool relays[NBREL] = { 1,1,1,1,1,1 };
 	setAllRelays(relays);
 }
 
 // public
 void TChannels::allOff() {
-	bool relays[6] = { 0,0,0,0,0,0 };
+	bool relays[NBREL] = { 0,0,0,0,0,0 };
 	setAllRelays(relays);
 }
 
 // public
-bool TChannels::setRelay(unsigned int channel, bool rel_state)
+void TChannels::setRelay(unsigned int channel, bool rel_state)
 {
 	if (channel >= NBREL) { // channel out of range
 		Serial.print("[WARN]: Channel ");
 		Serial.print(channel);
 		Serial.println("does not exist!");
-		return false;
 	}
 
 	Rel_enabled[channel] = rel_state; // since this is a command from outside, we need to make this state permanent
 	set1(channel, rel_state); // switch relay
 	state = STATE_RST;  // trigger reset
-	return true;
 }
 
 // public
-bool TChannels::setAllRelays(bool* state)
+void TChannels::setAllRelays(bool* state)
 {
 	for (int i = 0; i < NBREL; i++) {
 		setRelay(i, state[i]);
 	}
-	return true;
 }
 
 void TChannels::setAutoRestartDelay(int16_t delay)
@@ -97,16 +97,17 @@ void TChannels::reset()
 	state = STATE_RST;
 }
 
-void TChannels::autoMode(int aNewAutoRestartDelay_s, bool reconnect_enabled, bool* aListChannelsUsed) {
+void TChannels::autoMode(bool _reconnect_enabled, bool _keep_faulty_channels_off, int _aNewAutoRestartDelay_s, bool* _aListChannelsUsed) {
 
 	//Serial.println("[INFO]: activating automode");
 
 	auto_disconnect_enabled = true;
-	auto_reconnect_enabled = reconnect_enabled;
-	autoRestartDelay_s = aNewAutoRestartDelay_s;
+	auto_reconnect_enabled = _reconnect_enabled;
+	keep_faulty_channels_off = _keep_faulty_channels_off;
+	autoRestartDelay_s = _aNewAutoRestartDelay_s;
 
 	// enable selected relays
-	setAllRelays(aListChannelsUsed);
+	setAllRelays(_aListChannelsUsed);
 
 	// tell state machine to start!
 	state = STATE_RST;
@@ -127,10 +128,10 @@ bool TChannels::isShortDetected(){
 }
 
 void TChannels::printChannelsStatus() {
-	Serial.print(Rel_status[0]);
+	Serial.print((int)Rel_status[0]);
 	for (int i = 1; i < NBREL; i++) {
 		Serial.print(",");
-		Serial.print(Rel_status[i]);
+		Serial.print((int)Rel_status[i]);
 	}
 	Serial.println("");
 }
@@ -205,22 +206,32 @@ void TChannels::run() {
 	}
 
 	if (state == STATE_SHORT_DETECTED) {
-		// decrease voltage, wait, and disconnect everything, and cancel Switching
-		// reset temporary relay states
+		// disconnect everything, decrease voltage, cancel Switching
+		
+		// check which channels to test and clear previous test results
+		// must be done before we switch the relays off since we might need to store the current state before it changes
 		for (int i = 0; i < NBREL; i++) {
-			RelState_testing[i] = 0;
+			if (keep_faulty_channels_off)  // only test channels which were previously on
+				Channels_to_test[i] = Rel_status[i];
+			else  // always test all channels that were enabled initially
+				Channels_to_test[i] = Rel_enabled[i];
+			Rel_test_result[i] = 0; // reset test results
 		}
-		set6(RelState_testing); // disconnect all relays
+
+		allOff(); // disconnect all relays
 		Serial.println("[INFO]: All channels disconnected!");
 
 		short_detected = 1;
 
+		Serial.println(keep_faulty_channels_off);
+		Serial.println("Channels to test:");
 		if (auto_reconnect_enabled) {
 			shortcircuit_finder_index = 0; // start testing from relay 0
 			//Decrease voltage for testing
 			gTDCDC.target_voltage_modifier = TEMP_DECREASE_MODIFIER;
 			//  turn AC off
 			gTOC.ac_paused = true;
+			gTHB.ac_paused = true;
 			timer1 = millis();  // start timer for next state
 			// go to next state
 			state = STATE_SHORT_WAITING;
@@ -228,7 +239,8 @@ void TChannels::run() {
 
 		}
 		else {
-			state = STATE_NORMAL; // keep relays off, otherwise pretend everything is normal
+			gTDCDC.shutdown();  // turn everything off
+			state = STATE_NORMAL; // pretend everything is normal
 		}
 	}
 	
@@ -238,8 +250,8 @@ void TChannels::run() {
 			// voltage is stable, let's turn on the next relay and see if it remains stable
 
 			// first, find out which one is the next enabled relay
-			while (shortcircuit_finder_index < NBREL && !Rel_enabled[shortcircuit_finder_index])
-				shortcircuit_finder_index++; // keep increasing if the current channel is not enabled, so it will be skipped
+			while (shortcircuit_finder_index < NBREL && !Channels_to_test[shortcircuit_finder_index])
+				shortcircuit_finder_index++; // keep increasing if the current channel should not be tested so it will be skipped
 
 			//Serial.print("[INFO]: Relays off, voltage stabilized -> switching on channel ");
 			//Serial.println(shortcircuit_finder_index);
@@ -273,7 +285,7 @@ void TChannels::run() {
 		if (v_stable || (millis() - timer1) > RELAUTO_TESTING_TIME_MS) {
 			// we're done with this channel -> store result and move on to the next
 
-			RelState_testing[shortcircuit_finder_index] = v_stable; // store whether or not this channel was fine
+			Rel_test_result[shortcircuit_finder_index] = v_stable; // store whether or not this channel was fine
 
 			//if (v_stable) {
 			//	Serial.print("[INFO]: Voltage stabilized, channel ");
@@ -302,7 +314,7 @@ void TChannels::run() {
 	else if (state == STATE_SHORT_TESTING_DONE) {
 		// test is done -> reconnect good samples, restore the proper voltage and resume
 
-		set6(RelState_testing);
+		set6(Rel_test_result);
 
 		Serial.print("[INFO]: Test finished. Reconnecting channels: ");
 		printChannelsStatus();
@@ -310,7 +322,9 @@ void TChannels::run() {
 		// test finished so we can restore the proper voltage
 		gTDCDC.restore_voltage();
 		gTOC.ac_paused = false;
+		gTHB.ac_paused = false;
 		timer1 = 0;  // reset timer so we don't immediatly detect another short circuit while the voltage is restored
+		gTDCDC.reset_stabilization_timer(); // reset this timer also (must be reset explicitly because it might not happen if no relays get reconnected)
 
 		short_detected = false; // detected short has been handled
 		state = STATE_NORMAL;

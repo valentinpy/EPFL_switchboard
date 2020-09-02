@@ -289,8 +289,9 @@ void TComm::SRelOff() {
 	gTChannels.printChannelsStatus();
 }
 void TComm::SRelAuto() {
-	uint16_t retry_duration_s = sCmd.parseLongArg();
-	bool enable_reconnect = sCmd.parseLongArg();
+	bool enable_reconnect = sCmd.parseLongArg();  // if channels should be tested and reconnected after a short (or just switch off and wait)
+	bool keep_faulty_channels_off = sCmd.parseLongArg();  // if channels that were previously switched off because of a short circuit should be tested again the next time (or remain off forever)
+	uint16_t retry_duration_s = sCmd.parseLongArg(); // if all channels should be reset after a fixed time
 	char* relays_to_use_raw = sCmd.next();
 	bool relays_to_use[6] = { 1,1,1,1,1,1 }; // default to 1 so that all relays turn on if nothing is specified
 	for (uint8_t i = 0; i < 6; i++) {
@@ -303,17 +304,27 @@ void TComm::SRelAuto() {
 	}
 
 	// print auto mode parameter info
-	Serial.print("[INFO]: Activating auto mode. Retry: ");
-	Serial.print(retry_duration_s);
-	Serial.print(" s; ");
-	Serial.print("Auto reconnect: ");
+	Serial.print("[INFO]: Activating auto mode. Auto reconnect: ");
 	if(enable_reconnect)
 		Serial.print("on");
 	else
 		Serial.print("off");
+	Serial.print("Keep faulty channels off: ");
+	if (keep_faulty_channels_off)
+		Serial.print("yes");
+	else
+		Serial.print("no");
+	if (retry_duration_s > 0) {
+		Serial.print("Reset channels every ");
+		Serial.print(retry_duration_s);
+		Serial.print(" s; ");
+	}
+	else {
+		Serial.print("No timed reset");
+	}
 	Serial.println();
 
-	gTChannels.autoMode(retry_duration_s, enable_reconnect, relays_to_use);
+	gTChannels.autoMode(enable_reconnect, keep_faulty_channels_off, retry_duration_s, relays_to_use);
 
 	gTChannels.printChannelsStatus();
 }
@@ -466,8 +477,8 @@ void TComm::vpy() {
 		gTDCDC.set_target_voltage(2000);
 		gTHB.stateChange(1);
 		gTOC.stateChange(1);
-		bool tmp[] = { 1,1,0,1,0,1 };
-		gTChannels.autoMode(0, 1, tmp);
+		bool tmp[] = { 1,1,1,0,0,1 };
+		gTChannels.autoMode(1, 1, 0, tmp);
 		break;
 	default:
 		Serial.println("Err VPY");

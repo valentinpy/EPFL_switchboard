@@ -12,12 +12,12 @@ public:
 
 	void allOn();
 	void allOff();
-	bool setRelay(unsigned int channel, bool state);
-	bool setAllRelays(bool* state);
+	void setRelay(unsigned int channel, bool state);
+	void setAllRelays(bool* state);
 	void setAutoRestartDelay(int16_t delay);
 	void reset();
 
-	void autoMode(int aNewAutoRestartDelay_s, bool reconnect_enabled, bool* aListChannelsUsed);
+	void autoMode(bool _reconnect_enabled, bool _keep_faulty_channels_off, int _aNewAutoRestartDelay_s, bool* _aListChannelsUsed);
 	void getChannelsStatus(bool* retVal);
 	void printChannelsStatus();
 	bool isTestingShort();
@@ -26,6 +26,7 @@ public:
 
 	bool auto_disconnect_enabled;
 	bool auto_reconnect_enabled;
+	bool keep_faulty_channels_off;
 
 private:
 	const int Rel0_PIN = 23;
@@ -35,14 +36,16 @@ private:
 	const int Rel4_PIN = 8;
 	const int Rel5_PIN = 7;
 
+	const byte NBREL = 6;
 	const int Rel_pin[6] = { Rel0_PIN, Rel1_PIN, Rel2_PIN, Rel3_PIN, Rel4_PIN, Rel5_PIN }; // digital pin used to control relay 0-5
 
-	int Rel_status[6] = {};
-	bool Rel_enabled[6] = {};
-	bool RelState_testing[6] = { 0,0,0,0,0,0 };
-	const byte NBREL = 6;
-	bool set1(unsigned int channel, bool state);
-	bool set6(bool* state);
+	bool Rel_status[6];
+	bool Channels_to_test[6];
+	bool Rel_enabled[6];
+	bool Rel_test_result[6];
+
+	void set1(unsigned int channel, bool state);
+	void set6(bool* state);
 
 	bool short_detected;
 	
