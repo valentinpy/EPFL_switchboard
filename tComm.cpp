@@ -309,18 +309,18 @@ void TComm::SRelAuto() {
 		Serial.print("on");
 	else
 		Serial.print("off");
-	Serial.print("Keep faulty channels off: ");
+	Serial.print(", Keep faulty channels off: ");
 	if (keep_faulty_channels_off)
 		Serial.print("yes");
 	else
 		Serial.print("no");
 	if (retry_duration_s > 0) {
-		Serial.print("Reset channels every ");
+		Serial.print(", Reset channels every ");
 		Serial.print(retry_duration_s);
 		Serial.print(" s; ");
 	}
 	else {
-		Serial.print("No timed reset");
+		Serial.print(", No timed reset");
 	}
 	Serial.println();
 
