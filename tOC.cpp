@@ -39,24 +39,15 @@ void TOC::run() {
 			internalRun(false, DONTCARE);
 		}
 	}
-	else if (ac_paused) {
-		if (hin != 1 || lin != 0) {
-			internalRun(true, HV); // make sure that we're paused in HV state, otherwise the short circuit test won't be able to detect anything
-		}
-		else {
-			internalRun(false, DONTCARE);
-		}
-	}
-	// Else, we handle that according to frequency
-	// TODO: This is "soft PWM", should use hardware counter compare
-	else {
+	else if (!ac_paused)  // cycle only if ac is not paused
+	{
 		//Serial.println(period_us);
 		if (micros() - timer_freq_us > period_us) {
 			timer_freq_us = micros();
 			//Serial.println("YOLO");
 			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
 			//Serial.println(frequency_toggler);
-			internalRun(true, (frequency_toggler));
+			internalRun(true, frequency_toggler);
 		}
 		else {
 			internalRun(false, DONTCARE);
@@ -67,8 +58,12 @@ void TOC::run() {
 void TOC::stateChange(uint8_t newState) {
 	newStateS.stateChanged = true;
 	newStateS.state = newState;
-  gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
-  // TODO: figure something out so we don't trigger short detectin on each cycle if switching at low frequency
+	gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
+}
+
+void TOC::forceState(uint8_t newState) {
+	// Immediately start switching to the specified state
+	internalRun(true, newState);
 }
 
 uint8_t TOC::getState() {
@@ -129,11 +124,8 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 		stateMachine = disconnect;
 	}
 
-	switch (stateMachine) {
-	case standby:
-		// do nothing while no change is requested
-		break;
-	case disconnect:
+	if (stateMachine == disconnect)
+	{
 		//disconnect all that has to be disconnected
 		if (!hin) {
 			digitalWrite(OC_H_PIN, LOW);
@@ -149,29 +141,20 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 		//netxt state: reconnect what has to be reconnected
 		stateMachine = reconnect;
 		// break; let's not break here so we can immediately do the reconnect if delay is 0
-	case reconnect:
-		//wait until delay over
-		if (millis() - timer >= OC_DELAY_MS) {
-			// reconnect what has to be reconnected
-			if (hin) {
-				digitalWrite(OC_H_PIN, HIGH);
-			}
-			if (lin) {
-				digitalWrite(OC_L_PIN, HIGH);
-			}
-			if (period_us > 12500) // if frequency is high enough, we don't need to reset because the voltage remains stable
-				gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
-			//finished, go back to standby
-			stateMachine = standby;
-		}
-		break;
+	}
 
-	case reset:
-	default:
-		// apply GND if we arrive here (shouldn't happen)
-		hin = 0;
-		lin = 1;
-		stateMachine = disconnect;
-		break;
+	if (stateMachine == reconnect && millis() - timer >= OC_DELAY_MS)  // if delay is 0, OCs are allowed to reconnect immediately
+	{
+		// reconnect what has to be reconnected
+		if (hin) {
+			digitalWrite(OC_H_PIN, HIGH);
+		}
+		if (lin) {
+			digitalWrite(OC_L_PIN, HIGH);
+		}
+		if (period_us > 12500) // if frequency is high enough, we don't need to reset because the voltage remains stable
+			gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
+		//finished, go back to standby
+		stateMachine = standby;
 	}
 }

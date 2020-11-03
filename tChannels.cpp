@@ -154,7 +154,7 @@ void TChannels::run() {
 
 	if (state == STATE_RST) {
 		// Reset
-		Serial.println("[INFO]: Resetting relay state");
+		//Serial.println("[INFO]: Resetting relay state");
 
 		//reset everything that has to be reseted and activate all relays
 		timer_relretry = millis(); // store current time for automatic reconnection
@@ -194,8 +194,9 @@ void TChannels::run() {
 				Serial.println("[INFO]: Voltage drop detected! [slow]");
 				// Short circuit confirmed
 				// Go to confirmed short circuit init case
-				timer1 = 0;
-				state = STATE_SHORT_DETECTED;
+				gTDCDC.target_voltage_modifier = 0; // turn voltage off to prevent surge when disconnecting channels
+				timer1 = millis();
+				state = STATE_SHORT_DETECTED_PREVENT_SURGE;
 			}
 		}
 		else {
@@ -203,6 +204,17 @@ void TChannels::run() {
 			return;
 		}
 		
+	}
+
+	if (state == STATE_SHORT_DETECTED_PREVENT_SURGE) {
+		// after test of one channel is done, make sure voltage is stable or we waited a moment at 0V before we switch the relays
+		if ((millis() - timer1) > RELAUTO_SURGE_SUPPRESSION_TIME_MS) {
+			state = STATE_SHORT_DETECTED; // back to waiting with relays off
+		}
+		else {
+			// not yet stable -> stay in this state to keep waiting
+			state = STATE_SHORT_DETECTED_PREVENT_SURGE;
+		}
 	}
 
 	if (state == STATE_SHORT_DETECTED) {
@@ -218,6 +230,16 @@ void TChannels::run() {
 			Rel_test_result[i] = 0; // reset test results
 		}
 
+		//  short outputs to GND and turn AC off
+		// this is done first to make sure samples are not exposed to a voltage spike when all loads are suddnely disconnected
+		// (relays are leaky so exposure to high voltage could occur even when relays are open)
+		save_hb_state = gTHB.getState();
+		save_oc_state = gTOC.getState();
+		gTOC.forceState(0); // switch off (short output to GND) immediately
+		gTHB.forceState(0); // switch off (short output to GND) immediately
+		gTOC.ac_paused = true;
+		gTHB.ac_paused = true;
+
 		allOff(); // disconnect all relays
 		Serial.println("[INFO]: All channels disconnected!");
 
@@ -227,15 +249,13 @@ void TChannels::run() {
 			shortcircuit_finder_index = 0; // start testing from relay 0
 			//Decrease voltage for testing
 			gTDCDC.target_voltage_modifier = TEMP_DECREASE_MODIFIER;
-			//  turn AC off
-			gTOC.ac_paused = true;
-			gTHB.ac_paused = true;
 			timer1 = millis();  // start timer for next state
 			// go to next state
 			state = STATE_SHORT_WAITING;
 			Serial.println("[INFO]: Testing for short circuits...");
 		}
 		else {
+			gTDCDC.target_voltage_modifier = TEMP_DECREASE_MODIFIER; // set back to normal (in case it was set to 0 for surge prevention)
 			gTDCDC.shutdown();  // turn everything off
 			state = STATE_NORMAL; // pretend everything is normal
 		}
@@ -253,9 +273,12 @@ void TChannels::run() {
 			//Serial.print("[INFO]: Relays off, voltage stabilized -> switching on channel ");
 			//Serial.println(shortcircuit_finder_index);
 
-			if (shortcircuit_finder_index < NBREL) {
-				// next channel index is in range, so we're not done testing yet
+			if (shortcircuit_finder_index < NBREL) // next channel index is in range, so we're not done testing yet
+			{
+				// connect next relay and reconnect OC and HB
 				set1(shortcircuit_finder_index, true);
+				gTOC.forceState(1); // switch on to allow testing (doesn't need to be immediate so we can use normal state change)
+				gTHB.forceState(1);
 				timer1 = millis();  // reset timer for next state
 				state = STATE_SHORT_TESTING;
 			}
@@ -284,18 +307,40 @@ void TChannels::run() {
 
 			Rel_test_result[shortcircuit_finder_index] = v_stable; // store whether or not this channel was fine
 
-			//if (v_stable) {
-			//	Serial.print("[INFO]: Voltage stabilized, channel ");
-			//	Serial.print(shortcircuit_finder_index);
-			//	Serial.println(" is OK");
-			//}
-			//else {
-			//	Serial.print("[INFO]: Voltage did not stabilize, channel ");
-			//	Serial.print(shortcircuit_finder_index);
-			//	Serial.println(" is faulty");
-			//}
-			set1(shortcircuit_finder_index, false); // turn this channel off again
+			if (v_stable) {
+				//Serial.print("[INFO]: Voltage stabilized, channel ");
+				//Serial.print(shortcircuit_finder_index);
+				//Serial.println(" is OK");
+			}
+			else {
+				//Serial.print("[INFO]: Voltage did not stabilize, channel ");
+				//Serial.print(shortcircuit_finder_index);
+				//Serial.println(" is faulty");
+				gTDCDC.target_voltage_modifier = 0; // turn voltage off briefly to avoid spike when we disconnect the channel
+				gTDCDC.reset_stabilization_timer();
+			}
+			timer1 = millis();  // reset timer for next state
+			state = STATE_SHORT_TESTING_PREVENT_SURGE;
+		}
+		else {
+			// not yet stable -> stay in this state to keep waiting
+			state = STATE_SHORT_TESTING;
+		}
+	}
 
+	else if (state == STATE_SHORT_TESTING_PREVENT_SURGE) {
+		// after test of one channel is done, make sure voltage is stable or we waited a moment at 0V before we switch the relays
+		if (gTDCDC.is_voltage_stable() || (millis() - timer1) > RELAUTO_SURGE_SUPPRESSION_TIME_MS) {
+
+			if (gTDCDC.target_voltage_modifier == 0) {
+				gTDCDC.target_voltage_modifier = TEMP_DECREASE_MODIFIER; // turn on DCDC again to testing voltage
+				gTDCDC.reset_stabilization_timer();
+			}
+			// short sample to GND before switching relay back off
+			gTOC.forceState(0); // switch off (short output to GND) immediately
+			gTHB.forceState(0); // switch off (short output to GND) immediately
+			delay(10); // wait a few ms to make sure that OC and HB switch before the channel relay
+			set1(shortcircuit_finder_index, false); // turn this channel off again
 
 			shortcircuit_finder_index++; // move on to next channel
 
@@ -304,27 +349,42 @@ void TChannels::run() {
 		}
 		else {
 			// not yet stable -> stay in this state to keep waiting
-			state = STATE_SHORT_TESTING;
+			state = STATE_SHORT_TESTING_PREVENT_SURGE;
 		}
 	}
 
 	else if (state == STATE_SHORT_TESTING_DONE) {
 		// test is done -> reconnect good samples, restore the proper voltage and resume
 
-		set6(Rel_test_result);
-
-		Serial.print("[INFO]: Test finished. Reconnecting channels: ");
-		printChannelsStatus();
-
-		// test finished so we can restore the proper voltage
 		gTDCDC.restore_voltage();
-		gTOC.ac_paused = false;
-		gTHB.ac_paused = false;
-		timer1 = 0;  // reset timer so we don't immediatly detect another short circuit while the voltage is restored
-		gTDCDC.reset_stabilization_timer(); // reset this timer also (must be reset explicitly because it might not happen if no relays get reconnected)
-
-		short_detected = false; // detected short has been handled
-		state = STATE_NORMAL;
+		gTDCDC.reset_stabilization_timer();
+		
+		state = STATE_RESUME_OPERATION;
+		
 	}
+
+	else if (state == STATE_RESUME_OPERATION) {
+		// with voltage restored (still all relays off), wait until voltage is stable
+		if (gTDCDC.is_voltage_stable()) {
+			// voltage is stable, let's turn relays back on and resume operation
+			set6(Rel_test_result);
+			gTOC.forceState(save_oc_state); // switch back to previous state before the test
+			gTHB.forceState(save_hb_state);
+
+			short_detected = false; // short should have been dealt with
+			timer1 = 0;  // reset timer so we don't immediatly detect another short circuit while the voltage is restored
+
+			Serial.print("[INFO]: Test finished. Reconnecting channels: ");
+			printChannelsStatus();
+
+			// test finished so we can continue AC cycling (if enabled)
+			gTOC.ac_paused = false;
+			gTHB.ac_paused = false;
+			gTDCDC.reset_stabilization_timer(); // reset this timer also (better do it explicitly because it might not happen if no relays get reconnected)
+
+			state = STATE_NORMAL;
+		}
+	}
+
 
 }

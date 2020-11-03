@@ -61,8 +61,14 @@ void THB::stateChange(uint8_t newState) {
 	newStateS.state = newState;
 }
 
+void THB::forceState(uint8_t newState) {
+	// Immediately start switching to the specified state
+	newStateS.state = newState;
+	internalRun(true, newState);
+}
+
 uint8_t THB::getState(){
-	return newStateS.state;
+	return currentState;
 }
 
 uint8_t THB::getOperationMode() {
@@ -89,6 +95,7 @@ void THB::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
 }
 
 void THB::internalRun(bool stateChange, stateEnum newState){
+	
 	if (stateChange) {
 		//Serial.print("Changing state:");
 		//Serial.println(newState);
@@ -122,66 +129,53 @@ void THB::internalRun(bool stateChange, stateEnum newState){
 			hinb = 0;
 			break;
 		}
+		currentState = newState;
 		// next state: disconnect all that has to be disconnected
 		stateMachine = disconnect;
 	}
 
-	switch (stateMachine) {
-	case standby:
-		// do nothing while no change is requested
-		break;
-	case disconnect:
+	if (stateMachine == disconnect) 
+	{
 		//disconnect all that has to be disconnected
-		if (!lina) {
-			digitalWrite(HB_LINA_PIN, LOW);
-		}
-		if (!linb) {
-			digitalWrite(HB_LINB_PIN, LOW);
-		}
 		if (!hina) {
 			digitalWrite(HB_HINA_PIN, LOW);
 		}
 		if (!hinb) {
 			digitalWrite(HB_HINB_PIN, LOW);
 		}
+		if (!lina) {
+			digitalWrite(HB_LINA_PIN, LOW);
+		}
+		if (!linb) {
+			digitalWrite(HB_LINB_PIN, LOW);
+		}
 		gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the HB
 		//start a timer to wait (non blocking) for a few milliseconds to be sure relays switched
 		timer = millis();
 		//netxt state: reconnect what has to be reconnected
 		stateMachine = reconnect;
-		break;
-	case reconnect:
-		//wait until delay over
-		if (millis() - timer > REL_DELAY_MS) {
-			// reconnect what has to be reconnected
-			if (lina) {
-				digitalWrite(HB_LINA_PIN, HIGH);
-			}
-			if (linb) {
-				digitalWrite(HB_LINB_PIN, HIGH);
-			}
-			if (hina) {
-				digitalWrite(HB_HINA_PIN, HIGH);
-			}
-			if (hinb) {
-				digitalWrite(HB_HINB_PIN, HIGH);
-			}
-			gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the HB
-			//finished, go back to standby
-			stateMachine = standby;
-		}
-		break;
-
-	case reset:
-	default:
-		// apply GND short if we arrive here (shouldn't happen)
-		lina = 1;
-		linb = 1;
-		hina = 0;
-		hinb = 0;
-		stateMachine = disconnect;
-		break;
 	}
+
+	if (stateMachine == reconnect && millis() - timer >= REL_DELAY_MS)
+	{
+		// reconnect what has to be reconnected
+		if (lina) {
+			digitalWrite(HB_LINA_PIN, HIGH);
+		}
+		if (linb) {
+			digitalWrite(HB_LINB_PIN, HIGH);
+		}
+		if (hina) {
+			digitalWrite(HB_HINA_PIN, HIGH);
+		}
+		if (hinb) {
+			digitalWrite(HB_HINB_PIN, HIGH);
+		}
+		gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the HB
+		//finished, go back to standby
+		stateMachine = standby;
+	}
+
 }
 
 

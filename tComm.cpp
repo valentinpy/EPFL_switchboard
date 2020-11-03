@@ -23,7 +23,7 @@ extern THB gTHB;
 extern TChannels gTChannels;
 extern TLed gTLed;
 
-bool TComm::debugEnabled = false;
+uint8_t TComm::debug = 0;
 uint32_t TComm::deadManSwitchTimeout_ms = 0;
 uint32_t TComm::timer = 0;
 
@@ -79,7 +79,7 @@ void TComm::setup() {
 	sCmd.addCommand("vpy", this->vpy); // vpy testing command
 	sCmd.setDefaultHandler(this->unrecognized); // Handler for command that isn't matched
 
-	TComm::debugEnabled = false;
+	TComm::debug = 0;
 	TComm::deadManSwitchTimeout_ms = 0;
 	TComm::timer = millis();
 }
@@ -100,7 +100,7 @@ void TComm::run() {
 	}
 
 	// if debug is enabled, print current state every 100 ms
-	if (TComm::debugEnabled) {
+	if (TComm::debug == 1) {
 		if ((millis() - TComm::timer) > TComm::DELAY_MS) {
 			TComm::timer = millis();
 			debugPrint();
@@ -110,7 +110,9 @@ void TComm::run() {
 }
 
 void TComm::debugPrint() {
-	Serial.println("Vnow[V] Stable[0/1000] PWM[1023-0] Inow[0.1mA]");
+	Serial.println("Vset[V] Vnow[V] Stable[0/1000] PWM[1023-0] Inow[0.1mA]");
+	Serial.print(gTDCDC.get_last_PID_setpoint());
+	Serial.print(", ");
 	Serial.print(gTDCDC.get_last_Vnow());
 	Serial.print(", ");
 	Serial.print(gTDCDC.is_voltage_stable() * 1000);
@@ -459,7 +461,7 @@ void TComm::Reboot() {
 void TComm::Debug() {
 	uint8_t val = (uint8_t)sCmd.parseLongArg();
 	Serial.println(val);
-	TComm::debugEnabled = (bool)val;
+	TComm::debug = val;
 }
 
 void TComm::vpy() {

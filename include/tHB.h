@@ -11,6 +11,7 @@ public:
 	void setup();
 	void run();
 	void stateChange(uint8_t newState);
+	void forceState(uint8_t newState);
 
 	uint8_t getState();
 	uint8_t getOperationMode();
@@ -29,7 +30,7 @@ private:
 	const uint8_t HB_HINB_PIN = 6; // H-Bridge: high side, side B
 
 	// timing constants
-	const uint32_t REL_DELAY_MS = 10;
+	const uint32_t REL_DELAY_MS = 3; // delay to avoid brief short circuit when switching. (switch time is 3 ms for both on and off according to data sheet)
 	const uint16_t MAXFREQUENCY_HZ = 100; //TODO: Test and change, especially if implementing hard PWM
 
 	// state machine enum + var for transition without short-circuit
@@ -38,6 +39,7 @@ private:
 
 	// enum of possible states
 	enum stateEnum { GND = 0, HVA = 1, HVB = 2, HIGHZ = 3, DONTCARE };
+	stateEnum currentState = GND;
 
 	// struct used for state machine when a new state change is requested
 	struct newStatetruct {

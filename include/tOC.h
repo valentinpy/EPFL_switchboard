@@ -12,6 +12,8 @@ public:
 	void run();
 	void stateChange(uint8_t newState);
 
+	void forceState(uint8_t newState);
+
 	uint8_t getState();
 	uint8_t getOperationMode();
 	uint16_t getMaxFrequencyHz();
@@ -26,7 +28,7 @@ private:
 	const uint8_t OC_L_PIN = 27; // OC: low side
 
 	// timing constants
-	const uint32_t OC_DELAY_MS = 0;
+	const uint32_t OC_DELAY_MS = 0; // OCs switch fast enough, we don't need a delay
 	const uint16_t MAXFREQUENCY_HZ = 100; //TODO: Test and change, especially if implementing hard PWM
 
 	// state machine enum + var for transition without short-circuit

@@ -44,6 +44,9 @@ private:
 	bool Rel_enabled[6];
 	bool Rel_test_result[6];
 
+	uint8_t save_hb_state;
+	uint8_t save_oc_state;
+
 	void set1(unsigned int channel, bool state);
 	void set6(bool* state);
 
@@ -53,10 +56,13 @@ private:
 	enum autoModeStateEnum {
 		STATE_RST,
 		STATE_NORMAL,
+		STATE_SHORT_DETECTED_PREVENT_SURGE,
 		STATE_SHORT_DETECTED,
 		STATE_SHORT_WAITING,
 		STATE_SHORT_TESTING,
+		STATE_SHORT_TESTING_PREVENT_SURGE,
 		STATE_SHORT_TESTING_DONE,
+		STATE_RESUME_OPERATION,
 		STATE_ERR
 	};
 	autoModeStateEnum state;
@@ -66,10 +72,11 @@ private:
 
 	uint32_t supplementary_delay_ms = 0;
 	int8_t shortcircuit_finder_index;
-	const double TEMP_DECREASE_MODIFIER = 0.8;  // by how much to reduce target voltage during short circuit testing
+	const double TEMP_DECREASE_MODIFIER = 0.5;  // by how much to reduce target voltage during short circuit testing
 	const uint16_t RELAUTO_LOW_VOLTAGE_TIME_THRESH_MS = 1000; // Minimum time [ms] that voltage needs to be low (as determined by tDCDC) for a short circuit to be detected
 	const uint16_t RELAUTO_TESTING_TIME_MS = 1500; // Test duration before declaring a faulty sample
 	const uint16_t RELAUTO_WAITING_VOTLAGE_REG_TIME_MS = 3000; // Max time to wait to wait for voltage to stabilize when no samples are connected
+	const uint16_t RELAUTO_SURGE_SUPPRESSION_TIME_MS = 500; // Max time to wait to wait for voltage to stabilize when no samples are connected
 	const uint16_t RELAUTO_REL_TIME_MS = 200;
 
 	uint32_t main_timer;

@@ -60,7 +60,7 @@ PID::PID(double* Input, double* Output, double* Setpoint,
       double dInput = (input - lastInput);
 
       /*Compute PID Output*/
-      double output = kp * error + ITerm- kd * dInput;
+      double output = kp * error + ITerm - kd * dInput;
 
       if(output > outMax) output = outMax;
       else if(output < outMin) output = outMin;
@@ -168,6 +168,12 @@ PID::PID(double* Input, double* Output, double* Setpoint,
     else if(ITerm < outMin) ITerm = outMin;
   }
 
+  void PID::Reset_I()
+  {
+      ITerm = 0;
+  }
+
+
   /* SetControllerDirection(...)*************************************************
   * The PID will either be connected to a DIRECT acting process (+Output leads
   * to +Input) or a REVERSE acting process(+Output leads to -Input.)  we need to
@@ -193,5 +199,6 @@ PID::PID(double* Input, double* Output, double* Setpoint,
   double PID::GetKp(){ return  dispKp; }
   double PID::GetKi(){ return  dispKi;}
   double PID::GetKd(){ return  dispKd;}
+  double PID::getITerm(){ return  ITerm;}
   int PID::GetMode(){ return  inAuto ? AUTOMATIC : MANUAL;}
   int PID::GetDirection(){ return controllerDirection;}

@@ -3,6 +3,7 @@
 #include "include/tChannels.h"
 #include "include/tOC.h"
 #include "include/tHB.h"
+#include "include/tComm.h"
 #include "include/hPID_v1.h"
 #include "include/mEEPROM.h"
 #include "EEPROM.h"
@@ -16,6 +17,7 @@ static const uint8_t DCDC_CTRL_PIN = 13; // Digital output pin for driving trans
 static const uint8_t DCDC_CURRENT_FB_PIN = 20; // Voltage representing DCDC input current, gain: 2 V/A -> 1 V = 500 mA
 extern HDBG gHDBG;
 extern TChannels gTChannels;
+extern TComm gTComm;
 extern TOC gTOC;
 extern THB gTHB;
 
@@ -52,7 +54,7 @@ void TDCDC::setup(){
     HVPS_PID.SetSampleTime(5); //PID output is updated every 5ms
     HVPS_PID.SetTunings(Kp, Ki, Kd); //set the regulators parameters with data read from EEPROM
     HVPS_PID.SetMode(AUTOMATIC);
-    HVPS_PID.SetControllerDirection(REVERSE);
+    //HVPS_PID.SetControllerDirection(REVERSE);
 
     //setup PWM
     //TODO: add a general PWM Class, with:
@@ -82,6 +84,9 @@ void TDCDC::run(){
     }
     else {
         setpoint = setpoint_save * target_voltage_modifier;  // always apply modifier to setpoint specified by user
+        //if (setpoint > 0 && setpoint < Vmin) {
+        //    setpoint = Vmin;  // can't modify to be below minimum voltage
+        //}
     }
     
     // measure voltage
@@ -96,25 +101,42 @@ void TDCDC::run(){
         // - setpoint => target voltage
         // - input => measured voltage
         // - output => result of PID computation => PWM duty cycle
-        if (setpoint == 0) { // if setpoint is 0, we ignore controller and set output off
-            setPWMDuty(1023); // set to max value -> inverted PWM to 0 -> DCDC off
-
-            if (output < 1023) {  // last output was not yet 0 V (1023)  -> let controller know it hasn't reached the set point yet by giving a fake input
-                input = 100;
-                HVPS_PID.Compute();  // update controler
-            }
+        //if (setpoint == 0)  // if setpoint is 0, we disable controller and set output off
+        //{
+        //    setPWMDuty(1023); // set to max value -> inverted PWM to 0 -> DCDC off
+        //    HVPS_PID.SetMode(MANUAL); // turn PID off so it doesn't wind up while the output is clamped
+        //}
+        //else if (HVPS_PID.GetMode() == MANUAL)
+        //{
+        //    double sp_temp = setpoint;
+        //    // set everything 0 to reset the controller properly
+        //    HVPS_PID.SetMode(AUTOMATIC); // re-enable PID if the setpoint is no longer 0 (this resets the controller)
+        //    HVPS_PID.Reset(); // re-enable PID if the setpoint is no longer 0 (this resets the controller)
+        //    setpoint = sp_temp;
+        //}
+        
+        input = last_Vnow; // Tell PID what was the measured voltage
+        if (setpoint == 0) {
+            if (HVPS_PID.GetMode() == AUTOMATIC)
+                HVPS_PID.SetMode(MANUAL);
+            output = 0;
         }
         else {
-            input = last_Vnow; // Tell PID what was the measured voltage
-            bool newValue = HVPS_PID.Compute(); // update PID controller on every cycle when setpoint is > 0
-            if (newValue)
-                setPWMDuty(output); // Apply output if computed
-            //Serial.print("in: ");
-            //Serial.print(input);
-            //Serial.print("\tsetpoint: ");
-            //Serial.print(setpoint);
-            //Serial.print("\tPWM out: ");
-            //Serial.println(output);
+            if (HVPS_PID.GetMode() == MANUAL)
+                HVPS_PID.SetMode(AUTOMATIC);
+            HVPS_PID.Compute();
+        }
+        setPWMDuty(output);
+        if (gTComm.debug == 2) {
+            Serial.println("Setpoint Input Output Iterm");
+            Serial.print(setpoint);
+            Serial.print(", ");
+            Serial.print(input);
+            Serial.print(", ");
+            Serial.print(output);
+            Serial.print(", ");
+            Serial.print(HVPS_PID.getITerm());
+            Serial.println("");
         }
 
         // check if voltage is stable
@@ -288,10 +310,13 @@ void TDCDC::initPWM() {
 }
 
 void TDCDC::setPWMDuty(uint16_t duty) {
-    //duty is a 10bit value
-    TC4H = duty >> 8;
-    OCR4A = 0xFF & duty;
-    last_PWM = duty;
+    duty = 1023 - duty; // PWM output is inverted
+    if (duty != last_PWM) {
+        //duty is a 10bit value
+        TC4H = duty >> 8;
+        OCR4A = 0xFF & duty;
+        last_PWM = duty;
+    }
 }
 
 //---------------------------------
@@ -325,6 +350,11 @@ uint16_t TDCDC::get_last_Inow() {
 uint16_t TDCDC::get_last_PWM() {
     return last_PWM;
 }
+uint16_t TDCDC::get_last_PID_setpoint() {
+    return setpoint;
+}uint16_t TDCDC::get_last_PID_output() {
+    return output;
+}
 
 bool TDCDC::is_voltage_stable() {
     // return true if the last time the voltage was not on target is sufficiently long ago
@@ -349,18 +379,6 @@ void TDCDC::set_Vmax(uint16_t new_vmax)
 void TDCDC::set_Vmin(uint16_t new_vmin)
 {
     Vmin = new_vmin;
-}
-
-int16_t TDCDC::get_Verror_percent() {
-    int32_t Vset = (int16_t)setpoint;
-    int32_t Vnow = (int16_t)last_Vnow;
-    int32_t error = ((Vnow - Vset) * 100) / Vset;
-    /*Serial.print(Vset);
-    Serial.print("\t");
-    Serial.print(Vnow);
-    Serial.print("\t");
-    Serial.println(error);*/
-    return error;
 }
 
 bool TDCDC::get_enable_switch() {

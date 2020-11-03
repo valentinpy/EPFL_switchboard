@@ -8,6 +8,7 @@ public:
   void run();
   
 
+  static uint8_t debug;
 private:
   static void QVmax();
   static void SVmax();
@@ -57,7 +58,6 @@ private:
   static void debugPrint();
 
   static uint32_t deadManSwitchTimeout_ms;
-  static bool debugEnabled;
 
   static uint32_t timer;
   static const uint32_t DELAY_MS = 100;
