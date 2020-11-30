@@ -454,6 +454,7 @@ void TComm::SDeadManSwitch()
 
 void TComm::Reboot() {
 	Serial.println("Rebooting");
+	delay(100);
 	wdt_enable(WDTO_15MS);
 	while (1) {}
 }
