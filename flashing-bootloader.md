@@ -89,7 +89,7 @@ As something can be connected to the pins corresponding to those LEDS, we might 
 
 The simple way is to modify the file "pins_arduino.h" corresponding to the board used (be careful: a different file exists for each board).
 
-What has to bbe done is simply editing that file and change the macros for RXLED* and RXLED* to "void(0)"
+What has to be done is simply editing that file and change the macros for RXLED* and TXLED* to "void(0)"
 
 In my case, the file is located here:
 `C:/Users/Valentin Py/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.2/variants/micro/pins_arduino.h`
