@@ -1,8 +1,8 @@
-/*Code for the switchboard boards of the Project derivated from Peta-pico-Voltron
-Author: Valentin Py
+/*Code for the NERD switchboard v2 firmware inspired by Peta-pico-Voltron
+Author: Valentin Py, Djen Kühnel
 E-mail: valentin.py@epfl.ch / valentin.py@gmail.com
 Company: EPFL - LMTS
-Date: 17.12.2019
+Date: 01/09/2020
 
 source:petapicovoltron.com
 Target platform: Arduino micro + switchboard v1.0

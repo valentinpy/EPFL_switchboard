@@ -1,5 +1,9 @@
 #include "Arduino.h"
 #include "include/tOC.h"
+#include "include/tDCDC.h"
+
+// external instances of others tasks
+extern TDCDC gTDCDC;
 
 //enum stateEnum { GND, HIGHZ, HVA, HBB };
 //enum stateMachineEnum { reset, standby, newState, disconnect, reconnect };
@@ -35,17 +39,15 @@ void TOC::run() {
 			internalRun(false, DONTCARE);
 		}
 	}
-
-	// Else, we handle that according to frequency
-	// TODO: This is "soft PWM", should use hardware counter compare
-	else {
+	else if (!ac_paused)  // cycle only if ac is not paused
+	{
 		//Serial.println(period_us);
 		if (micros() - timer_freq_us > period_us) {
 			timer_freq_us = micros();
 			//Serial.println("YOLO");
 			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
 			//Serial.println(frequency_toggler);
-			internalRun(true, (frequency_toggler));
+			internalRun(true, frequency_toggler);
 		}
 		else {
 			internalRun(false, DONTCARE);
@@ -56,10 +58,16 @@ void TOC::run() {
 void TOC::stateChange(uint8_t newState) {
 	newStateS.stateChanged = true;
 	newStateS.state = newState;
+	gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
+}
+
+void TOC::forceState(uint8_t newState) {
+	// Immediately start switching to the specified state
+	internalRun(true, newState);
 }
 
 uint8_t TOC::getState() {
-	return newStateS.state;
+	return currentState;
 }
 
 uint8_t TOC::getOperationMode() {
@@ -83,7 +91,11 @@ void TOC::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
 		newStateS.stateChanged = true;
 	}
 	frequency_toggler = 0; // init "toggler", variable used to switch from low to high,... in frequency mode
+
+	gTDCDC.reset_stabilization_timer();
 }
+
+
 
 void TOC::internalRun(bool stateChange, stateEnum newState) {
 	if (stateChange) {
@@ -107,15 +119,13 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 			lin = 1;
 			break;
 		}
+		currentState = newState;
 		// next state: disconnect all that has to be disconnected
 		stateMachine = disconnect;
 	}
 
-	switch (stateMachine) {
-	case standby:
-		// do nothing while no change is requested
-		break;
-	case disconnect:
+	if (stateMachine == disconnect)
+	{
 		//disconnect all that has to be disconnected
 		if (!hin) {
 			digitalWrite(OC_H_PIN, LOW);
@@ -123,32 +133,28 @@ void TOC::internalRun(bool stateChange, stateEnum newState) {
 		if (!lin) {
 			digitalWrite(OC_L_PIN, LOW);
 		}
+
+		if (period_us > 12500) // if frequency is high enough, we don't need to reset because the voltage remains stable
+			gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
 		//start a timer to wait (non blocking) for a few milliseconds to be sure relays switched
 		timer = millis();
 		//netxt state: reconnect what has to be reconnected
 		stateMachine = reconnect;
-		break;
-	case reconnect:
-		//wait until delay over
-		if (millis() - timer >= OC_DELAY_MS) {
-			// reconnect what has to be reconnected
-			if (hin) {
-				digitalWrite(OC_H_PIN, HIGH);
-			}
-			if (lin) {
-				digitalWrite(OC_L_PIN, HIGH);
-			}
-			//finished, go back to standby
-			stateMachine = standby;
-		}
-		break;
+		// break; let's not break here so we can immediately do the reconnect if delay is 0
+	}
 
-	case reset:
-	default:
-		// apply GND if we arrive here (shouldn't happen)
-		hin = 0;
-		lin = 1;
-		stateMachine = disconnect;
-		break;
+	if (stateMachine == reconnect && millis() - timer >= OC_DELAY_MS)  // if delay is 0, OCs are allowed to reconnect immediately
+	{
+		// reconnect what has to be reconnected
+		if (hin) {
+			digitalWrite(OC_H_PIN, HIGH);
+		}
+		if (lin) {
+			digitalWrite(OC_L_PIN, HIGH);
+		}
+		if (period_us > 12500) // if frequency is high enough, we don't need to reset because the voltage remains stable
+			gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the OCs
+		//finished, go back to standby
+		stateMachine = standby;
 	}
 }

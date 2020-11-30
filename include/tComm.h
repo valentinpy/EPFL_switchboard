@@ -8,9 +8,12 @@ public:
   void run();
   
 
+  static uint8_t debug;
 private:
   static void QVmax();
   static void SVmax();
+  static void QVmin();
+  static void SVmin();
   static void SVset();
   static void QVset();
   static void QVnow();
@@ -35,7 +38,9 @@ private:
   static void SRelOff();
   static void SRelAuto();
   static void QRelState();
+  static void QShortDetected();
   static void QTestingShort();
+  static void QStable();
   static void QCurrent();
   static void SOC();
   static void SOCF();
@@ -44,6 +49,7 @@ private:
   static void SHBF();
   static void QHB();
   static void QEnable();
+  static void SDeadManSwitch();
   static void Reboot();
   static void Debug();
   static void vpy(); // vpy testing command
@@ -51,7 +57,7 @@ private:
 
   static void debugPrint();
 
-  static bool debugEnabled;
+  static uint32_t deadManSwitchTimeout_ms;
 
   static uint32_t timer;
   static const uint32_t DELAY_MS = 100;

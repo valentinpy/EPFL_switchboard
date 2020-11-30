@@ -11,10 +11,13 @@ public:
 	void setup();
 	void run();
 	void stateChange(uint8_t newState);
+	void forceState(uint8_t newState);
 
 	uint8_t getState();
 	uint8_t getOperationMode();
 	uint16_t getMaxFrequencyHz();
+
+	bool ac_paused = false;  // flag to indicate if AC should be paused (for short circuit testing)
 
 	void setOperationMode(operationModeEnum newOpMode, double newFrequency = 0);
 	
@@ -27,7 +30,7 @@ private:
 	const uint8_t HB_HINB_PIN = 6; // H-Bridge: high side, side B
 
 	// timing constants
-	const uint32_t REL_DELAY_MS = 10;
+	const uint32_t REL_DELAY_MS = 3; // delay to avoid brief short circuit when switching. (switch time is 3 ms for both on and off according to data sheet)
 	const uint16_t MAXFREQUENCY_HZ = 100; //TODO: Test and change, especially if implementing hard PWM
 
 	// state machine enum + var for transition without short-circuit
@@ -36,6 +39,7 @@ private:
 
 	// enum of possible states
 	enum stateEnum { GND = 0, HVA = 1, HVB = 2, HIGHZ = 3, DONTCARE };
+	stateEnum currentState = GND;
 
 	// struct used for state machine when a new state change is requested
 	struct newStatetruct {
@@ -61,11 +65,5 @@ private:
 	// switching state machine
 	void internalRun(bool stateChange, stateEnum newState);
 
-	bool long_shortCircuitProtection();
-	uint32_t timer_lscp_1;
-	uint32_t timer_lscp_2;
-	const uint16_t LSCP_CANCEL_TIME_MS = 500;
-	const uint16_t LSCP_MAX_TIME_MS = 5000;
-	// threshold and minimum voltage are stil hardcoded in THB::long_shortCircuitProtection()
 };
 #endif

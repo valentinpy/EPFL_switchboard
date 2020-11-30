@@ -45,7 +45,7 @@ void THB::run() {
 	// TODO: This is "soft PWM", should use hardware counter compare
 	else {
 	//Serial.println(period_us);
-		if (micros() - timer_freq_us > period_us) {
+		if (micros() - timer_freq_us > period_us && !ac_paused) {  // don't switch if AC is paused
 			timer_freq_us = micros();
 			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
 			internalRun(true, (frequency_toggler+1)); //1,2,1,2,...
@@ -54,14 +54,6 @@ void THB::run() {
 			internalRun(false, DONTCARE);
 		}
 	}
-
-	// If we have a short circuit for too long, disconnect H-Bridge as a protection for DCDC
-	if (long_shortCircuitProtection()) {
-		operationMode = OPMANUAL;
-		newStateS.stateChanged = true;
-		newStateS.state = GND;
-		Serial.println("[WARN]: long short circuit detected - deactivating H-Bridge");
-	}
 }
 
 void THB::stateChange(uint8_t newState) {
@@ -69,8 +61,14 @@ void THB::stateChange(uint8_t newState) {
 	newStateS.state = newState;
 }
 
+void THB::forceState(uint8_t newState) {
+	// Immediately start switching to the specified state
+	newStateS.state = newState;
+	internalRun(true, newState);
+}
+
 uint8_t THB::getState(){
-	return newStateS.state;
+	return currentState;
 }
 
 uint8_t THB::getOperationMode() {
@@ -97,6 +95,7 @@ void THB::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
 }
 
 void THB::internalRun(bool stateChange, stateEnum newState){
+	
 	if (stateChange) {
 		//Serial.print("Changing state:");
 		//Serial.println(newState);
@@ -130,97 +129,53 @@ void THB::internalRun(bool stateChange, stateEnum newState){
 			hinb = 0;
 			break;
 		}
+		currentState = newState;
 		// next state: disconnect all that has to be disconnected
 		stateMachine = disconnect;
 	}
 
-	switch (stateMachine) {
-	case standby:
-		// do nothing while no change is requested
-		break;
-	case disconnect:
+	if (stateMachine == disconnect) 
+	{
 		//disconnect all that has to be disconnected
-		if (!lina) {
-			digitalWrite(HB_LINA_PIN, LOW);
-		}
-		if (!linb) {
-			digitalWrite(HB_LINB_PIN, LOW);
-		}
 		if (!hina) {
 			digitalWrite(HB_HINA_PIN, LOW);
 		}
 		if (!hinb) {
 			digitalWrite(HB_HINB_PIN, LOW);
 		}
+		if (!lina) {
+			digitalWrite(HB_LINA_PIN, LOW);
+		}
+		if (!linb) {
+			digitalWrite(HB_LINB_PIN, LOW);
+		}
+		gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the HB
 		//start a timer to wait (non blocking) for a few milliseconds to be sure relays switched
 		timer = millis();
 		//netxt state: reconnect what has to be reconnected
 		stateMachine = reconnect;
-		break;
-	case reconnect:
-		//wait until delay over
-		if (millis() - timer > REL_DELAY_MS) {
-			// reconnect what has to be reconnected
-			if (lina) {
-				digitalWrite(HB_LINA_PIN, HIGH);
-			}
-			if (linb) {
-				digitalWrite(HB_LINB_PIN, HIGH);
-			}
-			if (hina) {
-				digitalWrite(HB_HINA_PIN, HIGH);
-			}
-			if (hinb) {
-				digitalWrite(HB_HINB_PIN, HIGH);
-			}
-			//finished, go back to standby
-			stateMachine = standby;
-		}
-		break;
-
-	case reset:
-	default:
-		// apply GND short if we arrive here (shouldn't happen)
-		lina = 1;
-		linb = 1;
-		hina = 0;
-		hinb = 0;
-		stateMachine = disconnect;
-		break;
 	}
+
+	if (stateMachine == reconnect && millis() - timer >= REL_DELAY_MS)
+	{
+		// reconnect what has to be reconnected
+		if (lina) {
+			digitalWrite(HB_LINA_PIN, HIGH);
+		}
+		if (linb) {
+			digitalWrite(HB_LINB_PIN, HIGH);
+		}
+		if (hina) {
+			digitalWrite(HB_HINA_PIN, HIGH);
+		}
+		if (hinb) {
+			digitalWrite(HB_HINB_PIN, HIGH);
+		}
+		gTDCDC.reset_stabilization_timer();  // so we don't detect a short just after switching the HB
+		//finished, go back to standby
+		stateMachine = standby;
+	}
+
 }
 
-bool THB::long_shortCircuitProtection() {
-	// This methods compares target voltage and measured voltage
-	// If the measured voltage is too log for a defined time: LSCP_MAX_TIME_MS, the functions return true
-	// To cancel the LSCP_MAX_TIME_MS timer, voltage has to be restored over threshold for at least LSCP_CANCEL_TIME_MS
-	// Method is non blocking, and the called should read return value
-	
-	// Return value is true if a long short-circuit has been detected
 
-
-	// detect begin of short circuit
-	uint16_t Vnow = gTDCDC.get_last_Vnow();
-	uint16_t Vset = gTDCDC.get_Vset();
-
-	if ((Vnow < (Vset / 2)) && (Vset > 50) && (gTDCDC.get_enable_switch())) { // low voltage
-		timer_lscp_1 = 0;
-		if (timer_lscp_2 == 0) { // Low voltage first time
-			timer_lscp_2 = millis();
-		}
-		else if ((timer_lscp_2 != 0) && (millis() - timer_lscp_2) > LSCP_MAX_TIME_MS) {
-			timer_lscp_2 = 0;
-			return true;
-		}
-	}
-	else { // not low voltage anymore for 500ms
-		if (timer_lscp_1 == 0) {
-			timer_lscp_1 = millis();
-		}
-		if ((millis() - timer_lscp_1) > LSCP_CANCEL_TIME_MS) {
-			timer_lscp_2 = 0;
-			timer_lscp_1 = 0;
-		}
-	}
-	return false;
-}

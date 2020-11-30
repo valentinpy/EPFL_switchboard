@@ -21,6 +21,7 @@ public:
   PID(double*, double*, double*, double, double, double, int);  // constructor.  links the PID to the Input, Output, and setpoint.  Initial tuning parameters are also set here
 
   void SetMode(int Mode);               // * sets PID to either Manual (0) or Auto (non-0)
+  void Reset_I();
 
   bool Compute();                       // * performs the PID calculation.  it should be
   //   called every time loop() cycles. ON/OFF and
@@ -46,6 +47,7 @@ public:
   double GetKp();						  // These functions query the pid for interal values.
   double GetKi();						  //  they were created mainly for the pid front-end,
   double GetKd();						  // where it's important to know what is actually
+  double getITerm();
   int GetMode();						  //  inside the PID.
   int GetDirection();					  //
 

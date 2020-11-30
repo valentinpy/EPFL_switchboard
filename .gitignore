@@ -4,7 +4,10 @@ old/
 __vm/
 *.vcxproj*
 *.sln
+*.cache
 tools/calibration/venv/
 tools/calibration/.idea/
 tools/calibration/__pycache__/
-tools/calibration/*.npy
+CppProperties.json
+/tools/calibration/switchboard_fit_2.npy
+.idea/

@@ -27,7 +27,7 @@
  * Constructor makes sure some things are set.
  */
 mSerialCommand::mSerialCommand()
-  : commandList(NULL),
+  : //commandList(NULL),
     commandCount(0),
     defaultHandler(NULL),
     term('\r'),           // default terminator for commands, newline character
@@ -50,7 +50,11 @@ void mSerialCommand::addCommand(const char *command, void (*function)()) {
     Serial.println(command);
   #endif
 
-  commandList = (mSerialCommandCallback *) realloc(commandList, (commandCount + 1) * sizeof(mSerialCommandCallback));
+  //commandList = (mSerialCommandCallback *) realloc(commandList, (commandCount + 1) * sizeof(mSerialCommandCallback));
+  if (commandCount >= SERIALCOMMAND_MAXCOMMANDCOUNT) {
+    Serial.println("Cannot add any more commands!");
+    return;
+  }
   strncpy(commandList[commandCount].command, command, SERIALCOMMAND_MAXCOMMANDLENGTH);
   commandList[commandCount].function = function;
   commandCount++;
@@ -73,6 +77,8 @@ void mSerialCommand::setDefaultHandler(void (*function)(const char *)) {
 void mSerialCommand::readSerial() {
   while (Serial.available() > 0) {
     char inChar = Serial.read();   // Read single available character, there may be more waiting
+    t_last_message_received = millis();
+
     #ifdef SERIALCOMMAND_DEBUG
       Serial.print(inChar);   // Echo back to serial stream
     #endif
@@ -144,14 +150,14 @@ char *mSerialCommand::next() {
 }
 
 long mSerialCommand::parseLongArg() {
-  Serial.println("[WARN]: unsafe method: mSerialCommand::parseLongArg() - must be corrected");
+  //Serial.println("[WARN]: unsafe method: mSerialCommand::parseLongArg() - must be corrected");
   char * arg;
   arg = next();
   return atol(arg);
 }
 
 double mSerialCommand::parseDoubleArg() {
-    Serial.println("[WARN]: unsafe method: mSerialCommand::parseDoubleArg() - must be corrected");
+    //Serial.println("[WARN]: unsafe method: mSerialCommand::parseDoubleArg() - must be corrected");
     char* arg;
     arg = next();
     return atof(arg);
