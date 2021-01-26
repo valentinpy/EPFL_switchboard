@@ -127,17 +127,6 @@ void TDCDC::run(){
             HVPS_PID.Compute();
         }
         setPWMDuty(output);
-        if (gTComm.debug == 2) {
-            Serial.println("Setpoint Input Output Iterm");
-            Serial.print(setpoint);
-            Serial.print(", ");
-            Serial.print(input);
-            Serial.print(", ");
-            Serial.print(output);
-            Serial.print(", ");
-            Serial.print(HVPS_PID.getITerm());
-            Serial.println("");
-        }
 
         // check if voltage is stable
         if (abs(last_Vnow - setpoint) > V_STABLE_THRESHOLD) { // measured voltage is not in range
