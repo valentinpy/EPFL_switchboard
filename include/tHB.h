@@ -4,7 +4,7 @@
 class THB
 {
 public:
-	enum operationModeEnum { OPMANUAL = 0, OPFREQUENCY = 1 };
+	enum operationModeEnum { OPMANUAL = 0, OPFREQUENCY_BIPOLAR = 1, OPFREQUENCY_ONOFF=2 };
 	operationModeEnum operationMode;
 
 	THB() = default;

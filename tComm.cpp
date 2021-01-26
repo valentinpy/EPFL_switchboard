@@ -438,13 +438,19 @@ void TComm::SHB() {
 	}
 }
 void TComm::SHBF() {
-	gTHB.setOperationMode(THB::OPFREQUENCY);
+	//gTHB.setOperationMode(THB::OPFREQUENCY_BIPOLAR);
 	//gTHB.stateChange(0);
+	int mode = (int)sCmd.parseLongArg();
+	double freq = (double)sCmd.parseDoubleArg();
 
-	double val = (double)sCmd.parseDoubleArg();
-	if (val <= gTHB.getMaxFrequencyHz()) {
-		Serial.println(val);
-		gTHB.setOperationMode(THB::OPFREQUENCY, val);
+	if (freq <= gTHB.getMaxFrequencyHz()) {
+		Serial.println(freq);
+		if (mode == 0) {
+			gTHB.setOperationMode(THB::OPFREQUENCY_BIPOLAR, freq);
+		}
+		else {
+			gTHB.setOperationMode(THB::OPFREQUENCY_ONOFF, freq);
+		}
 	}
 	else {
 		Serial.println("Err: param");

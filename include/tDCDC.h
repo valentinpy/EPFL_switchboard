@@ -128,7 +128,7 @@ private:
 	uint32_t timer_lscp_VOK;
 	uint32_t timer_lscp_Vlow;
 	uint16_t duration_voltage_low;
-	const float LSCP_VOLTAGE_THRESHOLD_REL = 0.9; // voltage threshold (as a proportion og Vset) under which the long-term short protection triggers
+	const float LSCP_VOLTAGE_THRESHOLD_REL = 0.6; // voltage threshold (as a proportion og Vset) under which the long-term short protection triggers
 	const uint16_t LSCP_MAX_TIME_MS = 7000;  // duration of the short protection countdown before DCDC is switched off for safety
 	const uint16_t LSCP_CANCEL_TIME_MS = 500;  // minimum time the voltage must be in range to reset the short protection countdown
 

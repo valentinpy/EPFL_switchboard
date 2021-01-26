@@ -48,7 +48,13 @@ void THB::run() {
 		if (micros() - timer_freq_us > period_us && !ac_paused) {  // don't switch if AC is paused
 			timer_freq_us = micros();
 			frequency_toggler = ((frequency_toggler + 1) % 2); //0,1,0,1,...
-			internalRun(true, (frequency_toggler+1)); //1,2,1,2,...
+
+			if (operationMode == OPFREQUENCY_BIPOLAR) {
+				internalRun(true, (frequency_toggler+1)); //1,2,1,2 (BIPOLAR)
+			}
+			else {
+				internalRun(true, (frequency_toggler)); //0,1,0,1 (ONOFF)
+			}
 		}
 		else {
 			internalRun(false, DONTCARE);
@@ -80,7 +86,7 @@ uint16_t THB::getMaxFrequencyHz() {
 }
 
 float THB::getFrequencyHz() {
-	if (operationMode == OPFREQUENCY) {
+	if ((operationMode == OPFREQUENCY_BIPOLAR) || (operationMode == OPFREQUENCY_ONOFF)) {
 		return frequency_hz;
 	}
 	else {
