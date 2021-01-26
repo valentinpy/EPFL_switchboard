@@ -168,6 +168,7 @@ void TChannels::run() {
 		// Ensure we have correct target voltage
 		gTDCDC.restore_voltage();
 		gTOC.ac_paused = false;  // make sure AC is not disabled
+		gTHB.ac_paused = false;  // make sure AC is not disabled
 
 		// Next state, normal mode
 		state = STATE_NORMAL;
