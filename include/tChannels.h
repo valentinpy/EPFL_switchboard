@@ -19,7 +19,7 @@ public:
 
 	void autoMode(bool _reconnect_enabled, bool _keep_faulty_channels_off, int _aNewAutoRestartDelay_s, bool* _aListChannelsUsed);
 	void getChannelsStatus(bool* retVal);
-	void printChannelsStatus();
+	void printChannelsStatus(bool newLine);
 	bool isTestingShort();
 	bool isShortDetected();
 	void voltage_drop_detected_callback();

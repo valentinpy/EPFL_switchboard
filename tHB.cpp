@@ -79,10 +79,20 @@ uint16_t THB::getMaxFrequencyHz() {
 	return MAXFREQUENCY_HZ;
 }
 
+float THB::getFrequencyHz() {
+	if (operationMode == OPFREQUENCY) {
+		return frequency_hz;
+	}
+	else {
+		return -1;
+	}
+}
+
 void THB::setOperationMode(operationModeEnum newOpMode, double newFrequency) {
 	operationMode = newOpMode; // save new operation mode
 	if (newFrequency != 0) {
 		period_us = (uint32_t)(1000000 / (2 * newFrequency)); // if we are in frequency mode, save frequency (not used in manual mode)
+		frequency_hz = newFrequency;
 		timer_freq_us = micros();// start timer //TODO: check for overflow after about 70 minutes
 	}
 	else {
