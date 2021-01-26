@@ -477,12 +477,14 @@ void TComm::vpy() {
 		gTDCDC.restore_voltage();
 		break;
 	case 2:
+	{
 		gTDCDC.set_target_voltage(2000);
 		gTHB.stateChange(1);
 		gTOC.stateChange(1);
 		bool tmp[] = { 1,1,1,0,0,1 };
 		gTChannels.autoMode(1, 1, 0, tmp);
 		break;
+	}
 	default:
 		Serial.println("Err VPY");
 		break;
