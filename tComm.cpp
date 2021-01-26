@@ -100,17 +100,23 @@ void TComm::run() {
 	}
 
 	// if debug is enabled, print current state every 100 ms
-	if (TComm::debug == 1) {
+	if ((TComm::debug == 1) || (TComm::debug == 2)) {
 		if ((millis() - TComm::timer) > TComm::DELAY_MS) {
 			TComm::timer = millis();
-			debugPrint();
+			debugPrint(TComm::debug);
 		}
 	}
 	return;
 }
 
-void TComm::debugPrint() {
-	Serial.println("Vset[V] Vnow[V] Stable[0/1000] PWM[1023-0] Inow[0.1mA]");
+void TComm::debugPrint(int level) {
+	if (level == 1) {
+		Serial.println("Vset[V] Vnow[V] Stable[0/1000] PWM[1023-0] Inow[0.1mA]");
+	}
+	else {
+		Serial.print("[MONI],");
+	}
+
 	Serial.print(gTDCDC.get_last_PID_setpoint());
 	Serial.print(", ");
 	Serial.print(gTDCDC.get_last_Vnow());
@@ -120,6 +126,18 @@ void TComm::debugPrint() {
 	Serial.print(gTDCDC.get_last_PWM());
 	Serial.print(", ");
 	Serial.print(gTDCDC.get_last_Inow() * 10);
+	
+	if (level == 2) {
+		Serial.print(", ");
+		Serial.print(gTHB.getOperationMode() * !gTHB.ac_paused);
+		Serial.print(", ");
+		Serial.print(gTHB.getState());
+		Serial.print(", ");
+		Serial.print(gTHB.getFrequencyHz());
+		Serial.print(", ");
+		gTChannels.printChannelsStatus(false);
+	}
+
 	Serial.println("");
 }
 
@@ -281,14 +299,14 @@ void TComm::SRelOn() {
 	gTChannels.auto_disconnect_enabled = false;
 	gTChannels.auto_reconnect_enabled = false;
 	gTChannels.setAllRelays(relays_to_use);
-	gTChannels.printChannelsStatus();
+	gTChannels.printChannelsStatus(true);
 
 }
 void TComm::SRelOff() {
 	gTChannels.auto_disconnect_enabled = false;
 	gTChannels.auto_reconnect_enabled = false;
 	gTChannels.allOff();
-	gTChannels.printChannelsStatus();
+	gTChannels.printChannelsStatus(true);
 }
 void TComm::SRelAuto() {
 	bool enable_reconnect = sCmd.parseLongArg();  // if channels should be tested and reconnected after a short (or just switch off and wait)
@@ -328,7 +346,7 @@ void TComm::SRelAuto() {
 
 	gTChannels.autoMode(enable_reconnect, keep_faulty_channels_off, retry_duration_s, relays_to_use);
 
-	gTChannels.printChannelsStatus();
+	gTChannels.printChannelsStatus(true);
 }
 
 //void TComm::SRelAutoDisconnect()
@@ -357,7 +375,7 @@ void TComm::SRelAuto() {
 //}
 
 void TComm::QRelState() {
-	gTChannels.printChannelsStatus();
+	gTChannels.printChannelsStatus(true);
 }
 
 void TComm::QShortDetected()
@@ -454,6 +472,7 @@ void TComm::SDeadManSwitch()
 
 void TComm::Reboot() {
 	Serial.println("Rebooting");
+	delay(100);
 	wdt_enable(WDTO_15MS);
 	while (1) {}
 }
@@ -476,12 +495,14 @@ void TComm::vpy() {
 		gTDCDC.restore_voltage();
 		break;
 	case 2:
+	{
 		gTDCDC.set_target_voltage(2000);
 		gTHB.stateChange(1);
 		gTOC.stateChange(1);
 		bool tmp[] = { 1,1,1,0,0,1 };
 		gTChannels.autoMode(1, 1, 0, tmp);
 		break;
+	}
 	default:
 		Serial.println("Err VPY");
 		break;

@@ -15,6 +15,7 @@ public:
 
 	uint8_t getState();
 	uint8_t getOperationMode();
+	float getFrequencyHz();
 	uint16_t getMaxFrequencyHz();
 
 	bool ac_paused = false;  // flag to indicate if AC should be paused (for short circuit testing)
@@ -55,7 +56,8 @@ private:
 	bool hina;
 	bool hinb;
 	uint32_t period_us; // computed (half)-period (us)
-	
+	float frequency_hz;
+
 	uint8_t frequency_toggler; //variable to switch states
 
 	// Timers

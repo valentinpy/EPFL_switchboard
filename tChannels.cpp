@@ -127,13 +127,15 @@ bool TChannels::isShortDetected(){
 	return short_detected;
 }
 
-void TChannels::printChannelsStatus() {
+void TChannels::printChannelsStatus(bool newLine) {
 	Serial.print((int)Rel_status[0]);
 	for (int i = 1; i < NBREL; i++) {
 		Serial.print(",");
 		Serial.print((int)Rel_status[i]);
 	}
-	Serial.println("");
+	if (newLine) {
+		Serial.println("");
+	}
 }
 
 void TChannels::run() {
@@ -168,6 +170,7 @@ void TChannels::run() {
 		// Ensure we have correct target voltage
 		gTDCDC.restore_voltage();
 		gTOC.ac_paused = false;  // make sure AC is not disabled
+		gTHB.ac_paused = false;  // make sure AC is not disabled
 
 		// Next state, normal mode
 		state = STATE_NORMAL;
@@ -375,7 +378,7 @@ void TChannels::run() {
 			timer1 = 0;  // reset timer so we don't immediatly detect another short circuit while the voltage is restored
 
 			Serial.print("[INFO]: Test finished. Reconnecting channels: ");
-			printChannelsStatus();
+			printChannelsStatus(true);
 
 			// test finished so we can continue AC cycling (if enabled)
 			gTOC.ac_paused = false;

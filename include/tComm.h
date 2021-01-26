@@ -55,7 +55,7 @@ private:
   static void vpy(); // vpy testing command
   static void unrecognized(const char *command);
 
-  static void debugPrint();
+  static void debugPrint(int level);
 
   static uint32_t deadManSwitchTimeout_ms;
 
