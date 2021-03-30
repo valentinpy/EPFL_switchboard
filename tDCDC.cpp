@@ -47,6 +47,9 @@ void TDCDC::setup(){
     // Min and max voltage
     EEPROM.get(MEEPROM::ADR_VMAX_2B, Vmax);
     EEPROM.get(MEEPROM::ADR_VMIN_2B, Vmin);
+
+    //HV div ratio
+    EEPROM.get(MEEPROM::ADR_HV_DIV_RATIO_DBL, hv_div_ratio);
   
     //intial target voltage
 
@@ -226,10 +229,11 @@ uint16_t TDCDC::measure_HV_voltage_fast(float alpha) {
     y = alpha * x + (1.0 - alpha) * y;
     
     // calibration factor
-    return_V = y * 5.0 / 1023.0 * 1000; // conversion 10bit ADC => voltage 0..5V, assuming voltage divider ratio is 1:1000
+    return_V = y * 5.0 / 1023.0; // ADC voltage: conversion 10bit ADC => voltage 0..5V
+    return_V *= hv_div_ratio;
     return_V = C2 * 1E-6 * pow(return_V, 2) + C1 * return_V + C0;
 
-    if(return_V < 100)
+    if(return_V < Vmin)
         return_V = 0;  // make sure it gets set to 0 and never ends up negative and causes overflow
     
     return return_V;
@@ -330,6 +334,9 @@ double TDCDC::get_Ki() {
 double TDCDC::get_Kd() {
     return Kd;
 }
+double TDCDC::get_hv_div_ratio() {
+    return hv_div_ratio;
+}
 uint16_t TDCDC::get_last_Vnow() {
     return last_Vnow;
 }
@@ -397,6 +404,9 @@ void TDCDC::set_Ki(double Ki) {
 void TDCDC::set_Kd(double Kd) {
     this->Kd = Kd;
     HVPS_PID.SetTunings(Kp, Ki, Kd);
+}
+void TDCDC::set_hv_div_ratio(double hv_div_ratio) {
+    this->hv_div_ratio = hv_div_ratio;
 }
 
 bool TDCDC::long_shortCircuitProtection() {

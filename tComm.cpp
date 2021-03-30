@@ -59,6 +59,8 @@ void TComm::setup() {
 	sCmd.addCommand("QKp", this->QKp);
 	sCmd.addCommand("QKi", this->QKi);
 	sCmd.addCommand("QKd", this->QKd);
+	sCmd.addCommand("QHvdiv", this->QHvdiv);
+	sCmd.addCommand("SHvdiv", this->SHvdiv);
 	sCmd.addCommand("SROn", this->SRelOn);
 	sCmd.addCommand("SROff", this->SRelOff);
 	sCmd.addCommand("SRAut", this->SRelAuto);
@@ -212,6 +214,8 @@ void TComm::Conf() {
 	EEPROM.put(MEEPROM::ADR_KI_DBL, (double)1.0);
 	EEPROM.put(MEEPROM::ADR_KD_DBL, (double)0.0);
 
+	EEPROM.put(MEEPROM::ADR_HV_DIV_RATIO_DBL, (double)1000.0);
+
 	MEEPROM::update_string(MEEPROM::ADR_NAME_STR, 21, "NOT DEFINED");
 
 	EEPROM.put(MEEPROM::ADR_VMAX_2B, 5000);
@@ -285,6 +289,20 @@ void TComm::QKd() {
 	val = gTDCDC.get_Kd();
 	Serial.println(val);
 }
+
+void TComm::QHvdiv() {
+	double val;
+	val = gTDCDC.get_hv_div_ratio();
+	Serial.println(val);
+}
+
+void TComm::SHvdiv() {
+	double val = (double)sCmd.parseDoubleArg();
+	Serial.println(val);
+	EEPROM.put(MEEPROM::ADR_HV_DIV_RATIO_DBL, val);
+	gTDCDC.set_hv_div_ratio(val);
+}
+
 void TComm::SRelOn() {
 	char* relays_to_use_raw = sCmd.next();
 	bool relays_to_use[6] = { 1,1,1,1,1,1 }; // default to 1 so that all relays turn on if nothing is specified

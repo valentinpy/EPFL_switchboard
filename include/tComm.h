@@ -34,6 +34,8 @@ private:
   static void QKp();
   static void QKi();
   static void QKd();
+  static void SHvdiv();
+  static void QHvdiv();
   static void SRelOn();
   static void SRelOff();
   static void SRelAuto();

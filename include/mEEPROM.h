@@ -29,7 +29,8 @@ public:
   static const int ADR_KP_DBL=28;        // (4B) PID gain double
   static const int ADR_KI_DBL=32;        // (4B) PID integral term double
   static const int ADR_KD_DBL=36;        // (4B) PID derivative term double
-  // 40-99 free
+  static const int ADR_HV_DIV_RATIO_DBL = 40; //(4B) HV div ratio double
+  // 44-99 free
   static const int ADR_NAME_STR=100; //store the board name (21 bytes) located at 100 to leave some space to add new stored variables without having to resave the name
 
 

@@ -28,6 +28,8 @@ public:
 	double get_Ki();
 	double get_Kd();
 
+	double get_hv_div_ratio();
+
 	uint16_t get_last_Vnow();
 	uint16_t get_last_PWM();
 	uint16_t get_last_PID_output();
@@ -53,6 +55,8 @@ public:
 	void set_Kp(double Kp);
 	void set_Ki(double Ki);
 	void set_Kd(double Kd);
+	void set_hv_div_ratio(double hv_div_ratio);
+
 
 	bool long_shortCircuitProtection();
 	uint32_t get_duration_voltage_low();
@@ -80,6 +84,7 @@ private:
 	const uint16_t V_STABLE_THRESHOLD = 50; // how close voltage needs to be to set point to be considered on target
 	const uint32_t STATE_CHANGE_COOLDOWN_MS = 100; // how long to wait after a state change before short detection can trigger if voltage isn't rising
 
+	double hv_div_ratio;
 
 	double C0;
 	double C1;
