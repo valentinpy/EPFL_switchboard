@@ -51,6 +51,7 @@ private:
 	void set6(bool* state);
 
 	bool short_detected;
+	float current_stable;
 	
 	int16_t autoRestartDelay_s;
 	enum autoModeStateEnum {
@@ -78,6 +79,7 @@ private:
 	const uint16_t RELAUTO_WAITING_VOTLAGE_REG_TIME_MS = 3000; // Max time to wait to wait for voltage to stabilize when no samples are connected
 	const uint16_t RELAUTO_SURGE_SUPPRESSION_TIME_MS = 500; // Max time to wait to wait for voltage to stabilize when no samples are connected
 	const uint16_t RELAUTO_REL_TIME_MS = 200;
+	const float CURRENT_INCREASE_THRESH = 1.5;
 
 	uint32_t main_timer;
 	const uint16_t MAIN_DELAY_MS = 50;

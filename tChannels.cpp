@@ -169,11 +169,11 @@ void TChannels::run() {
 
 		// Ensure we have correct target voltage
 		gTDCDC.restore_voltage();
-		gTOC.ac_paused = false;  // make sure AC is not disabled
-		gTHB.ac_paused = false;  // make sure AC is not disabled
+gTOC.ac_paused = false;  // make sure AC is not disabled
+gTHB.ac_paused = false;  // make sure AC is not disabled
 
-		// Next state, normal mode
-		state = STATE_NORMAL;
+// Next state, normal mode
+state = STATE_NORMAL;
 	}
 
 	if (state == STATE_NORMAL) {
@@ -191,7 +191,7 @@ void TChannels::run() {
 			// check voltages
 			uint16_t Vset = gTDCDC.get_Vset();
 			uint16_t Vnow = gTDCDC.get_last_Vnow();
-			
+
 			//if (((Vnow < Vthreshold) && ((millis() - timer1) >= RELAUTO_LOW_VOLTAGE_TIME_THRESH_MS))) { // don't need to check the actual voltage anymore. tDCDC does that now
 			if (gTDCDC.get_duration_voltage_low() >= RELAUTO_LOW_VOLTAGE_TIME_THRESH_MS) {
 				Serial.println("[INFO]: Voltage drop detected! [slow]");
@@ -206,7 +206,7 @@ void TChannels::run() {
 			state = STATE_NORMAL; // auto disconnect is not enabled so we don't do anything and remain in normal state
 			return;
 		}
-		
+
 	}
 
 	if (state == STATE_SHORT_DETECTED_PREVENT_SURGE) {
@@ -222,7 +222,7 @@ void TChannels::run() {
 
 	if (state == STATE_SHORT_DETECTED) {
 		// disconnect everything, decrease voltage, cancel Switching
-		
+
 		// check which channels to test and clear previous test results
 		// must be done before we switch the relays off since we might need to store the current state before it changes
 		for (int i = 0; i < NBREL; i++) {
@@ -263,11 +263,20 @@ void TChannels::run() {
 			state = STATE_NORMAL; // pretend everything is normal
 		}
 	}
-	
+
 	else if (state == STATE_SHORT_WAITING) {
 		// with all relays off, wait until voltage is stable
 		if (gTDCDC.is_voltage_stable()) {
 			// voltage is stable, let's turn on the next relay and see if it remains stable
+
+			// measure current (average of 10 measurements) in stable state with no load
+			current_stable = 0;
+			int ncur = 10;
+			for (int i = 0; i < ncur; i++)
+			{
+				current_stable += gTDCDC.get_last_Inow();
+			}
+			current_stable /= ncur;
 
 			// first, find out which one is the next enabled relay
 			while (shortcircuit_finder_index < NBREL && !Channels_to_test[shortcircuit_finder_index])
@@ -308,17 +317,35 @@ void TChannels::run() {
 		if (v_stable || (millis() - timer1) > RELAUTO_TESTING_TIME_MS) {
 			// we're done with this channel -> store result and move on to the next
 
-			Rel_test_result[shortcircuit_finder_index] = v_stable; // store whether or not this channel was fine
-
 			if (v_stable) {
 				//Serial.print("[INFO]: Voltage stabilized, channel ");
 				//Serial.print(shortcircuit_finder_index);
 				//Serial.println(" is OK");
+
+				// measure current (average of 10 measurements) with one relay connected
+				float current = 0;
+				int ncur = 10;
+				for (int i = 0; i < ncur; i++)
+				{
+					current += gTDCDC.get_last_Inow();
+				}
+				current /= ncur;
+				// check if the current increase is above a certain threshold (indicative of a short without detectable voltage drop)
+				if (current / current_stable > CURRENT_INCREASE_THRESH)
+				{
+					Rel_test_result[shortcircuit_finder_index] = false; // store whether or not this channel was fine
+				}
+				else
+				{
+					Rel_test_result[shortcircuit_finder_index] = true; // store whether or not this channel was fine
+				}
 			}
 			else {
 				//Serial.print("[INFO]: Voltage did not stabilize, channel ");
 				//Serial.print(shortcircuit_finder_index);
 				//Serial.println(" is faulty");
+				Rel_test_result[shortcircuit_finder_index] = false; // store whether or not this channel was fine
+
 				gTDCDC.target_voltage_modifier = 0; // turn voltage off briefly to avoid spike when we disconnect the channel
 				gTDCDC.reset_stabilization_timer();
 			}
